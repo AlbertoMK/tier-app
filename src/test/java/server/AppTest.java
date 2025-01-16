@@ -2,6 +2,8 @@ package server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import server.Database.MySqlConnector;
 import server.Model.User;
@@ -20,23 +22,29 @@ import static org.mockito.Mockito.when;
 
 public class AppTest extends ServerEndpointsTest {
 
+    @BeforeAll
+    public static void initialize() throws IOException {
+        startServer();
+    }
+
+    @AfterAll
+    public static void cleanUp() {
+        stopServer();
+    }
+
     @Test
     public void userFindByUsernameEndpointTest() throws IOException {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
         User user1 = new User("Alberto");
-
         when(mySqlConnector.findByUsername("Alberto")).thenReturn(Optional.of(user1));
-
-        HttpServer server = App.startServer(mySqlConnector);
+        App.attachDatabaseManager(mySqlConnector);
 
         try {
-            String response = makeHttpRequest(String.format("%s/user?username=Alberto", base_url)).body();
+            String response = makeHttpRequest("user?username=Alberto").body();
             assertEquals(new ObjectMapper().writeValueAsString(user1), response);
         } catch (IOException | InterruptedException ex) {
             fail("Unexpected exception happen: " + ex.getMessage());
-        } finally {
-            server.stop(0);
         }
     }
 
@@ -45,17 +53,14 @@ public class AppTest extends ServerEndpointsTest {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
         when(mySqlConnector.findByUsername("Alberto")).thenReturn(Optional.empty());
-
-        HttpServer server = App.startServer(mySqlConnector);
+        App.attachDatabaseManager(mySqlConnector);
 
         try {
-            HttpResponse<String> response = makeHttpRequest(String.format("%s/user?username=Alberto", base_url));
+            HttpResponse<String> response = makeHttpRequest("user?username=Alberto");
             assertEquals("User not found", response.body());
             assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
         } catch (IOException | InterruptedException ex) {
             fail("Unexpected exception happen: " + ex.getMessage());
-        } finally {
-            server.stop(0);
         }
     }
 
@@ -69,16 +74,13 @@ public class AppTest extends ServerEndpointsTest {
         User user4 = new User("Alonso");
 
         when(mySqlConnector.findAll()).thenReturn(List.of(user1, user2, user3, user4));
-
-        HttpServer server = App.startServer(mySqlConnector);
+        App.attachDatabaseManager(mySqlConnector);
 
         try {
-            String response = makeHttpRequest(String.format("%s/user", base_url)).body();
+            String response = makeHttpRequest("user").body();
             assertEquals(new ObjectMapper().writeValueAsString(List.of(user1, user2, user3, user4)), response);
         } catch (IOException | InterruptedException ex) {
             fail("Unexpected exception happen: " + ex.getMessage());
-        } finally {
-            server.stop(0);
         }
     }
 
@@ -87,16 +89,13 @@ public class AppTest extends ServerEndpointsTest {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
         when(mySqlConnector.findAll()).thenReturn(new ArrayList<>());
-
-        HttpServer server = App.startServer(mySqlConnector);
+        App.attachDatabaseManager(mySqlConnector);
 
         try {
-            String response = makeHttpRequest(String.format("%s/user", base_url)).body();
+            String response = makeHttpRequest("user").body();
             assertEquals(new ObjectMapper().writeValueAsString(new ArrayList<>()), response);
         } catch (IOException | InterruptedException ex) {
             fail("Unexpected exception happen: " + ex.getMessage());
-        } finally {
-            server.stop(0);
         }
     }
 }

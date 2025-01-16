@@ -6,7 +6,7 @@ import java.time.format.DateTimeFormatter;
 public class LoggerService {
 
     public static void log (String message) {
-        System.out.printf("%s\t%s",getDate(), message);
+        System.out.printf("%s\t%s\n",getDate(), message);
     }
 
     private static String getDate() {

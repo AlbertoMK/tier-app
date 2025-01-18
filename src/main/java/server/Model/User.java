@@ -6,18 +6,15 @@ import lombok.Getter;
 import java.util.Calendar;
 import java.util.List;
 
+@Getter
 @AllArgsConstructor
 public class User {
 
-    @Getter
     private String username;
 
-    @Getter
     private String password;
 
-    @Getter
     private Calendar dateOfBirth;
 
-    @Getter
     private List<Routine> routines;
 }

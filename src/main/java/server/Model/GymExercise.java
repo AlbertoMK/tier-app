@@ -2,7 +2,9 @@ package server.Model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
+@Getter
 @AllArgsConstructor
 public class GymExercise extends Exercise {
 
@@ -75,7 +77,7 @@ public class GymExercise extends Exercise {
         NONE
     }
 
-    public enum Arm {
+    public enum SingleArm {
         NO_ARM,
         ONE_ARM,
         DOUBLE_ARM
@@ -109,16 +111,10 @@ public class GymExercise extends Exercise {
         FULL_BODY
     }
 
-    @Getter
     private DifficultyLevel difficultyLevel;
-    @Getter
     private MuscleGroup muscleGroup;
-    @Getter
     private Equipment equipment;
-    @Getter
-    private Arm arm;
-    @Getter
+    private SingleArm arm;
     private Grip grip;
-    @Getter
     private BodyRegion bodyRegion;
 }

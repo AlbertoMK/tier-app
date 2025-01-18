@@ -2,14 +2,15 @@ package server.Model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
+@Getter
 @AllArgsConstructor
-public class Exercise {
+@NoArgsConstructor
+public abstract class Exercise {
 
-    @Getter
     protected String exerciseName;
 
-    @Getter
     protected String description;
 
 }

@@ -7,21 +7,36 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import server.Controllers.UserController;
 import server.Database.MySqlConnector;
+import server.Model.Routine;
 import server.Model.User;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 public class UserEndpointsTest extends ServerEndpointsTest {
+
+    static Calendar albertoBirthday = Calendar.getInstance();
+    static Calendar alonsoBirthday = Calendar.getInstance();
+    static Calendar nicoBirthday = Calendar.getInstance();
+    static Calendar unaiBirthday = Calendar.getInstance();
+
+    static {
+        albertoBirthday.set(2004, Calendar.JANUARY, 3);
+        alonsoBirthday.set(2004, Calendar.JULY, 24);
+        nicoBirthday.set(2004, Calendar.JANUARY, 24);
+        unaiBirthday.set(2004, Calendar.FEBRUARY, 7);
+    }
+
+    static User Alberto = new User("Alberto", "password", albertoBirthday, new ArrayList<Routine>());
+    static User Alonso = new User("Alonso", "password", alonsoBirthday, new ArrayList<Routine>());
+    static User Nico = new User("Nico", "password", nicoBirthday, new ArrayList<Routine>());
+    static User Unai = new User("Unai", "password", unaiBirthday, new ArrayList<Routine>());
 
     @BeforeAll
     public static void initialize() throws IOException {
@@ -37,13 +52,12 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     public void userFindByUsernameEndpointTest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
-        User user1 = new User("Alberto", "p1");
-        when(mySqlConnector.findByUsername("Alberto")).thenReturn(Optional.of(user1));
+        when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
         App.attachDatabaseManager(mySqlConnector);
 
         try {
-            String response = makeHttpRequest("user?username=Alberto", HttpMethod.GET, "").body();
-            assertEquals(new ObjectMapper().writeValueAsString(user1), response);
+            String response = makeHttpRequest("user?username=" + Alberto.getUsername(), HttpMethod.GET, "").body();
+            assertEquals(new ObjectMapper().writeValueAsString(Alberto), response);
         } catch (IOException | InterruptedException ex) {
             fail("Unexpected exception happen: " + ex.getMessage());
         }
@@ -53,11 +67,11 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     public void userFindByUsernameNotFoundEndpointTest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
-        when(mySqlConnector.findByUsername("Alberto")).thenReturn(Optional.empty());
+        when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.empty());
         App.attachDatabaseManager(mySqlConnector);
 
         try {
-            HttpResponse<String> response = makeHttpRequest("user?username=Alberto", HttpMethod.GET, "");
+            HttpResponse<String> response = makeHttpRequest("user?username=" + Alberto.getUsername(), HttpMethod.GET, "");
             assertEquals("User not found", response.body());
             assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
         } catch (IOException | InterruptedException ex) {
@@ -69,17 +83,12 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     public void userFindAllEndpointTest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
-        User user1 = new User("Alberto", "p1");
-        User user2 = new User("Unai", "p1");
-        User user3 = new User("Nico", "p1");
-        User user4 = new User("Alonso", "p1");
-
-        when(mySqlConnector.findAll()).thenReturn(List.of(user1, user2, user3, user4));
+        when(mySqlConnector.findAll()).thenReturn(List.of(Alberto, Alonso, Nico, Unai));
         App.attachDatabaseManager(mySqlConnector);
 
         try {
             String response = makeHttpRequest("user", HttpMethod.GET, "").body();
-            assertEquals(new ObjectMapper().writeValueAsString(List.of(user1, user2, user3, user4)), response);
+            assertEquals(new ObjectMapper().writeValueAsString(List.of(Alberto, Alonso, Nico, Unai)), response);
         } catch (IOException | InterruptedException ex) {
             fail("Unexpected exception happen: " + ex.getMessage());
         }
@@ -104,12 +113,11 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     public void createValidUserEndpointTest() {
         MySqlConnector mySqlConnector = spy(MySqlConnector.class);
 
-        when(mySqlConnector.findByUsername("Alberto")).thenReturn(Optional.empty());
+        when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.empty());
         App.attachDatabaseManager(mySqlConnector);
 
         try {
-            User user1 = new User("Alberto", "p1");
-            String requestBody = new ObjectMapper().writeValueAsString(user1);
+            String requestBody = new ObjectMapper().writeValueAsString(Alberto);
             HttpResponse<String> response = makeHttpRequest("user", HttpMethod.POST, requestBody);
 
             verify(mySqlConnector).createUser(any());
@@ -124,12 +132,11 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     public void createRepeatedUsernameUserEndpointTest() {
         MySqlConnector mySqlConnector = spy(MySqlConnector.class);
 
-        User user1 = new User("Alberto", "p1");
-        when(mySqlConnector.findByUsername("Alberto")).thenReturn(Optional.of(user1));
+        when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
         App.attachDatabaseManager(mySqlConnector);
 
         try {
-            String requestBody = new ObjectMapper().writeValueAsString(user1);
+            String requestBody = new ObjectMapper().writeValueAsString(Alberto);
             HttpResponse<String> response = makeHttpRequest("user", HttpMethod.POST, requestBody);
 
             verify(mySqlConnector, never()).createUser(any());
@@ -144,7 +151,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     public void validLoginEndpointTest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
-        User user1 = new User("alberto", UserController.hashPassword("p1"));
+        User user1 = new User("Alberto", UserController.hashPassword("p1"), Calendar.getInstance(), new ArrayList<>());
         when(mySqlConnector.findByUsername("alberto")).thenReturn(Optional.of(user1));
         App.attachDatabaseManager(mySqlConnector);
 
@@ -162,12 +169,11 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     public void wrongPasswordLoginEndpointTest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
-        User user1 = new User("alberto", "actual password");
-        when(mySqlConnector.findByUsername("alberto")).thenReturn(Optional.of(user1));
+        when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
         App.attachDatabaseManager(mySqlConnector);
 
         try {
-            String requestBody = new ObjectMapper().writeValueAsString(Map.of("username", "alberto", "password", "p1"));
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("username", Alberto.getUsername(), "password", "anotherPassword"));
             HttpResponse<String> response = makeHttpRequest("user/login", HttpMethod.POST, requestBody);
             assertEquals(HttpURLConnection.HTTP_UNAUTHORIZED, response.statusCode());
             assertTrue(response.body().contains("Incorrect password for given username"));

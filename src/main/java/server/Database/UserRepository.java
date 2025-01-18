@@ -9,4 +9,5 @@ public interface UserRepository {
 
     public Optional<User> findByUsername(String username);
     public List<User> findAll();
+    public void createUser(User user);
 }

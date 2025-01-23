@@ -1,13 +1,19 @@
 package server.Controllers;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import server.Utils.Utils;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public abstract class GenericHTTPHandler implements HttpHandler {
 
@@ -29,17 +35,17 @@ public abstract class GenericHTTPHandler implements HttpHandler {
         Utils.httpResponse(exchange, HttpURLConnection.HTTP_BAD_METHOD, response);
     }
 
-    private void handlePostRequest(HttpExchange exchange) throws IOException {
+    protected void handlePostRequest(HttpExchange exchange) throws IOException {
         String response = "Method not allowed";
         Utils.httpResponse(exchange, HttpURLConnection.HTTP_BAD_METHOD, response);
     }
 
-    private void handlePutRequest(HttpExchange exchange) throws IOException {
+    protected void handlePutRequest(HttpExchange exchange) throws IOException {
         String response = "Method not allowed";
         Utils.httpResponse(exchange, HttpURLConnection.HTTP_BAD_METHOD, response);
     }
 
-    private void handleDeleteRequest(HttpExchange exchange) throws IOException {
+    protected void handleDeleteRequest(HttpExchange exchange) throws IOException {
         String response = "Method not allowed";
         Utils.httpResponse(exchange, HttpURLConnection.HTTP_BAD_METHOD, response);;
     }
@@ -63,5 +69,43 @@ public abstract class GenericHTTPHandler implements HttpHandler {
             }
         }
         return params;
+    }
+
+    /**
+     * This method to extract as a Map of Strings the json body of a request
+     * @param exchange representing the http request
+     * @return Map of Strings representing the json body
+     * @throws IOException
+     */
+    protected Map<String, String> extractJsonBody(HttpExchange exchange) throws IOException {
+        InputStream inputStream = exchange.getRequestBody();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        StringBuilder body = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            body.append(line);
+        }
+
+        reader.close();
+        inputStream.close();
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        return objectMapper.readValue(body.toString(), Map.class);
+    }
+
+    /**
+     * Returns the next segment from a http path. eg: (user/manage/create/training, 1) -> "manage"
+     * @param uri
+     * @param index
+     * @return
+     */
+    protected static Optional<String> getNextSegment(URI uri, int index) {
+        String path = uri.getPath();
+        String[] segments = path.split("/");
+
+        if (index + 1 < segments.length) {
+            return Optional.of(segments[index + 1]);
+        }
+        return Optional.empty();
     }
 }

@@ -16,4 +16,9 @@ public class MySqlConnector implements UserRepository{
     public List<User> findAll() {
         return new ArrayList<>();
     }
+
+    @Override
+    public void createUser(User user) {
+
+    }
 }

@@ -18,6 +18,20 @@ import java.util.Optional;
 public abstract class GenericHTTPHandler implements HttpHandler {
 
     public void handle (HttpExchange exchange) throws IOException {
+
+        // ------------ this lines to allow connection from an html on localhost, erase them when using cloud --------------
+
+        exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*"); // Permitir solicitudes desde cualquier origen
+        exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE"); // Métodos permitidos
+        exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type, Authorization"); // Encabezados permitidos
+
+        if ("OPTIONS".equals(exchange.getRequestMethod())) {
+            exchange.sendResponseHeaders(200, -1);
+            return;
+        }
+
+        // ------------------------------------------------------------------------------------------------------------------
+
         switch (exchange.getRequestMethod()) {
             case "GET": handleGetRequest(exchange); break;
             case "POST": handlePostRequest(exchange); break;
@@ -25,29 +39,29 @@ public abstract class GenericHTTPHandler implements HttpHandler {
             case "DELETE": handleDeleteRequest(exchange); break;
             default:
                 String response = "Method not implemented";
-                Utils.httpResponse(exchange, HttpURLConnection.HTTP_NOT_IMPLEMENTED, response);
+                Utils.httpResponse(exchange, HttpURLConnection.HTTP_NOT_IMPLEMENTED, false, response);
         }
     }
 
     // by default, any mathod is allowed. Override these methods to implement the logic.
     protected void handleGetRequest(HttpExchange exchange) throws IOException {
         String response = "Method not allowed";
-        Utils.httpResponse(exchange, HttpURLConnection.HTTP_BAD_METHOD, response);
+        Utils.httpResponse(exchange, HttpURLConnection.HTTP_BAD_METHOD, false, response);
     }
 
     protected void handlePostRequest(HttpExchange exchange) throws IOException {
         String response = "Method not allowed";
-        Utils.httpResponse(exchange, HttpURLConnection.HTTP_BAD_METHOD, response);
+        Utils.httpResponse(exchange, HttpURLConnection.HTTP_BAD_METHOD, false, response);
     }
 
     protected void handlePutRequest(HttpExchange exchange) throws IOException {
         String response = "Method not allowed";
-        Utils.httpResponse(exchange, HttpURLConnection.HTTP_BAD_METHOD, response);
+        Utils.httpResponse(exchange, HttpURLConnection.HTTP_BAD_METHOD, false, response);
     }
 
     protected void handleDeleteRequest(HttpExchange exchange) throws IOException {
         String response = "Method not allowed";
-        Utils.httpResponse(exchange, HttpURLConnection.HTTP_BAD_METHOD, response);;
+        Utils.httpResponse(exchange, HttpURLConnection.HTTP_BAD_METHOD, false, response);;
     }
 
     /**

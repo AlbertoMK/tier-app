@@ -20,7 +20,10 @@ import java.util.Optional;
 public class UserController extends GenericHTTPHandler {
 
     private UserRepository userRepository;
-    private static BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();;
+    private static BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+
+    private static final int MIN_USERNAME_LENGHT = 5;
+    private static final int MIN_PASSWORD_LENGHT = 8;
 
     public UserController(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -43,7 +46,8 @@ public class UserController extends GenericHTTPHandler {
 
         String response = (String) res[0];
         int httpStatus = (int) res[1];
-        Utils.httpResponse(exchange, httpStatus, response);
+        boolean isJson = (boolean) res[2];
+        Utils.httpResponse(exchange, httpStatus, isJson, response);
     }
 
     // POST /user
@@ -67,17 +71,20 @@ public class UserController extends GenericHTTPHandler {
 
         String response = (String) res[0];
         int httpStatus = (int) res[1];
-        Utils.httpResponse(exchange, httpStatus, response);
+        boolean isJson = (boolean) res[2];
+        Utils.httpResponse(exchange, httpStatus, isJson, response);
     }
 
     private Object[] loginEndpoint(HttpExchange exchange) {
         String response;
         int httpStatus;
+        boolean isJson;
         try {
             Map<String, String> body = extractJsonBody(exchange);
             if (!body.containsKey("username") || !body.containsKey("password")) { // request without username or password
                 response = "The request must include an username and a password.";
                 httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                isJson = false;
             } else {
                 String username = body.get("username");
                 String rawPassword = body.get("password");
@@ -86,48 +93,70 @@ public class UserController extends GenericHTTPHandler {
                         String token = UserTokenService.generateToken(username);
                         response = new ObjectMapper().writeValueAsString(Map.of("session-token", token));
                         httpStatus = HttpURLConnection.HTTP_OK;
+                        isJson = true;
                     } else { // wrong credentials
                         response = "Incorrect password for given username";
                         httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
+                        isJson = false;
                     }
                 } else { // request with not existing username
                     response = "Username not found";
                     httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
+                    isJson = false;
                 }
             }
         } catch (IOException ex) {
             response = "Internal error";
             httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            isJson = false;
             LoggerService.logerror("Internal error while obtaining http body from request.");
         }
-        return new Object[]{response, httpStatus};
+        return new Object[]{response, httpStatus, isJson};
     }
 
     private Object[] createUserEndpoint(HttpExchange exchange) throws IllegalArgumentException {
         String response;
         int httpStatus;
+        boolean isJson;
         try {
             Map<String, String> body = extractJsonBody(exchange);
             ObjectMapper objectMapper = new ObjectMapper();
-            objectMapper.configure(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES, true); // fails if there is a missing attribute.
             User user = objectMapper.convertValue(body, User.class);
-            user.setPassword(hashPassword(user.getPassword()));
-            if (createUser(user)) {
-                response = "Successfully created a new user";
-                httpStatus = HttpURLConnection.HTTP_OK;
+            if (user.getUsername().length() < MIN_USERNAME_LENGHT) {
+                response = String.format("Username too short. Min %d characters", MIN_USERNAME_LENGHT);
+                httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                isJson = false;
+            } else if (user.getPassword().length() < MIN_PASSWORD_LENGHT) {
+                response = String.format("Password too short. Min %d characters", MIN_PASSWORD_LENGHT);
+                httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                isJson = false;
+            } else if (user.getDateOfBirth() == null) {
+                response = "Users need to indicate its date of birth.";
+                httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                isJson = false;
             } else {
-                response = "Username is already taken";
-                httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                user.setPassword(hashPassword(user.getPassword()));
+                if (createUser(user)) {
+                    response = "Successfully created a new user";
+                    httpStatus = HttpURLConnection.HTTP_OK;
+                    isJson = false;
+                } else {
+                    response = "Username is already taken";
+                    httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                    isJson = false;
+                }
             }
         } catch (IOException ex) {
             response = "Internal error";
             httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            isJson = false;
             LoggerService.logerror("Internal error while obtaining http body from request.");
         } catch (IllegalArgumentException argumentException) {
             response = "Invalid arguments for creating a new user";
             httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+            isJson = false;
         }
-        return new Object[]{response, httpStatus};
+        return new Object[]{response, httpStatus, isJson};
     }
 
     private boolean createUser(User user) {
@@ -142,37 +171,44 @@ public class UserController extends GenericHTTPHandler {
     private Object[] getUserByUsernameEndpoint(Map<String, String> params) {
         String response;
         int httpStatus;
+        boolean isJson;
         Optional<User> result = userRepository.findByUsername(params.get("username"));
         if (!result.isEmpty()) {
             User user = result.get();
             try {
                 response = new ObjectMapper().writeValueAsString(user);
                 httpStatus = HttpURLConnection.HTTP_OK;
+                isJson = true;
             } catch (JsonProcessingException ex) {
                 response = "Internal error";
                 httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+                isJson = false;
                 LoggerService.logerror("Internal error while parsing user object to json format.");
             }
         } else {
             response = "User not found";
             httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
+            isJson = false;
         }
-        return new Object[]{response, httpStatus};
+        return new Object[]{response, httpStatus, isJson};
     }
 
     private Object[] getAllUsersEndpoint() {
         List<User> users = userRepository.findAll();
         String response;
         int httpStatus;
+        boolean isJson;
         try {
             response = new ObjectMapper().writeValueAsString(users);
             httpStatus = HttpURLConnection.HTTP_OK;
+            isJson = true;
         } catch (JsonProcessingException ex) {
             response = "Internal error";
             httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            isJson = false;
             LoggerService.logerror("Internal error while parsing list of users to json format.");
         }
-        return new Object[]{response, httpStatus};
+        return new Object[]{response, httpStatus, isJson};
     }
 
     private boolean compareCredentials(String username, String rawPassword) {

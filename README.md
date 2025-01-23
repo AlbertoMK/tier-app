@@ -1,5 +1,12 @@
 # Beta-App
 
+## Cómo usar
+1. Ejecuta el [script sql](exercises_gym_exercises.sql) en MySql Workbench
+2. Modifica el contenido del [fichero de variables de entorno](src/main/resources/application.properties) susitutyendo la Url, usuario y contraseña de la base de datos
+3. Ejecuta el servidor, ejecutando la clase [App](src/main/java/server/App.java)
+4. Ejecuta el [archivo html inicial]()
+5. Debería estar todo funcionando y tener comunicación entre el sitio web y el servidor levantado
+
 ## Segundas responsabilidades
 > [!NOTE]
 > - **Alonso:** Product Manager  

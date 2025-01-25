@@ -13,15 +13,15 @@ public class MySqlConnector implements UserRepository {
 
     private Connection connection;
     public void connectDatabase() throws SQLException {
-        LoggerService.log("Starting connection with database...");
-        String url = PropertiesLoader.getProperty("database.url");
-        String user = PropertiesLoader.getProperty("database.username");
-        String password = PropertiesLoader.getProperty("database.password");
+        LoggerService.log("Starting connection with mysql database...");
+        String url = PropertiesLoader.getProperty("database.sql.url");
+        String user = PropertiesLoader.getProperty("database.sql.username");
+        String password = PropertiesLoader.getProperty("database.sql.password");
         try {
             connection = DriverManager.getConnection(url, user, password);
-            LoggerService.log("Connection successful");
+            LoggerService.log("MySQL connection successful");
         } catch (SQLException e) {
-            LoggerService.logerror("Error connecting to database");
+            LoggerService.logerror("Error connecting to mysql database");
         }
     }
 

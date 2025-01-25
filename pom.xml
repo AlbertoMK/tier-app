@@ -84,5 +84,13 @@
           <artifactId>java-jwt</artifactId>
           <version>4.4.0</version>
       </dependency>
+
+      <!-- Dependencies for MongoDB -->
+      <dependency>
+          <groupId>org.mongodb</groupId>
+          <artifactId>mongodb-driver-sync</artifactId>
+          <version>5.3.1</version>
+      </dependency>
+
   </dependencies>
 </project>

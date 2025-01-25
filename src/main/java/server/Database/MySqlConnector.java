@@ -1,5 +1,6 @@
 package server.Database;
 
+import server.Model.FriendRequest;
 import server.Model.User;
 import server.Utils.LoggerService;
 import server.Utils.PropertiesLoader;
@@ -8,6 +9,7 @@ import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public class MySqlConnector implements UserRepository {
 
@@ -48,7 +50,37 @@ public class MySqlConnector implements UserRepository {
     }
 
     @Override
-    public void createUser(User user) {
+    public void addUser(User user) {
 
+    }
+
+    @Override
+    public void updateUser(User user) {
+
+    }
+
+    @Override
+    public void addFriendship(User user1, User user2) {
+
+    }
+
+    @Override
+    public void addFriendRequest(User requester, User requested) {
+
+    }
+
+    @Override
+    public void deleteFriendRequest(User requester, User requested) {
+
+    }
+
+    @Override
+    public Set<FriendRequest> findFriendRequestsByRequester(User requester) {
+        return null;
+    }
+
+    @Override
+    public Set<FriendRequest> findFriendRequestsByRequested(User requested) {
+        return null;
     }
 }

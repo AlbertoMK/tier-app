@@ -29,7 +29,7 @@ public class MySqlConnector implements UserRepository {
         if (connection != null) {
             try {
                 connection.close();
-                LoggerService.log("Connection closed successfully");
+                LoggerService.log("MySQL connection closed successfully");
             } catch (SQLException e) {
                 LoggerService.logerror("Error closing connection");
             }

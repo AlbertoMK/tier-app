@@ -6,7 +6,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import server.Controllers.UserController;
 import server.Database.MySqlConnector;
+import server.Model.FriendRequest;
 import server.Model.User;
+import server.Utils.FriendRequestService;
+import server.Utils.UserTokenService;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -117,7 +120,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
             String requestBody = new ObjectMapper().writeValueAsString(Alberto);
             HttpResponse<String> response = makeHttpRequest("user", HttpMethod.POST, requestBody);
 
-            verify(mySqlConnector).createUser(any());
+            verify(mySqlConnector).addUser(any());
             assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
             assertEquals("Successfully created a new user", response.body());
         } catch (IOException | InterruptedException ex) {
@@ -136,7 +139,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
             String requestBody = new ObjectMapper().writeValueAsString(Alberto);
             HttpResponse<String> response = makeHttpRequest("user", HttpMethod.POST, requestBody);
 
-            verify(mySqlConnector, never()).createUser(any());
+            verify(mySqlConnector, never()).addUser(any());
             assertEquals(HttpURLConnection.HTTP_CONFLICT, response.statusCode());
             assertEquals("Username is already taken", response.body());
         } catch (IOException | InterruptedException ex) {
@@ -156,7 +159,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
             String requestBody = new ObjectMapper().writeValueAsString(user1);
             HttpResponse<String> response = makeHttpRequest("user", HttpMethod.POST, requestBody);
 
-            verify(mySqlConnector, never()).createUser(any());
+            verify(mySqlConnector, never()).addUser(any());
             assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
             assertTrue(response.body().contains("Username too short."));
         } catch (IOException | InterruptedException ex) {
@@ -176,7 +179,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
             String requestBody = new ObjectMapper().writeValueAsString(user1);
             HttpResponse<String> response = makeHttpRequest("user", HttpMethod.POST, requestBody);
 
-            verify(mySqlConnector, never()).createUser(any());
+            verify(mySqlConnector, never()).addUser(any());
             assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
             assertTrue(response.body().contains("Password too short."));
         } catch (IOException | InterruptedException ex) {
@@ -188,7 +191,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     public void validLoginEndpointTest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
-        User user1 = new User("alberto", UserController.hashPassword("password"), Calendar.getInstance(), new ArrayList<>());
+        User user1 = new User("alberto", UserController.hashPassword("password"), Calendar.getInstance());
         when(mySqlConnector.findByUsername("alberto")).thenReturn(Optional.of(user1));
         App.attachDatabaseManager(mySqlConnector);
 
@@ -246,6 +249,128 @@ public class UserEndpointsTest extends ServerEndpointsTest {
             HttpResponse<String> response = makeHttpRequest("user/login", HttpMethod.POST, requestBody);
             assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
             assertTrue(response.body().contains("The request must include an username and a password."));
+        } catch (IOException | InterruptedException ex) {
+            fail("Unexpected exception happen: " + ex.getMessage());
+        }
+    }
+
+    @Test
+    public void addFriendRequest() {
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(mySqlConnector);
+
+        when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
+        when(mySqlConnector.findByUsername(Unai.getUsername())).thenReturn(Optional.of(Unai));
+        when(mySqlConnector.findFriendRequestsByRequester(Alberto)).thenReturn(Set.of());
+
+        FriendRequestService.init(mySqlConnector);
+        try {
+            String token = UserTokenService.generateToken(Alberto.getUsername());
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Unai.getUsername()));
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
+            assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
+            assertTrue(response.body().contains("Friend request sent"));
+            verify(mySqlConnector).addFriendRequest(Alberto, Unai);
+        } catch (IOException | InterruptedException ex) {
+            fail("Unexpected exception happen: " + ex.getMessage());
+        }
+    }
+
+    @Test
+    public void addRepeatedFriendRequest() {
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(mySqlConnector);
+
+        when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
+        when(mySqlConnector.findByUsername(Unai.getUsername())).thenReturn(Optional.of(Unai));
+        when(mySqlConnector.findFriendRequestsByRequester(Alberto)).thenReturn(Set.of(new FriendRequest(Alberto, Unai)));
+
+        FriendRequestService.init(mySqlConnector);
+        try {
+            String token = UserTokenService.generateToken(Alberto.getUsername());
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Unai.getUsername()));
+            makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
+            assertEquals(HttpURLConnection.HTTP_CONFLICT, response.statusCode());
+            assertTrue(response.body().contains("This user has already sent a friend request"));
+            verify(mySqlConnector, never()).addFriendRequest(Alberto, Unai);
+        } catch (IOException | InterruptedException ex) {
+            fail("Unexpected exception happen: " + ex.getMessage());
+        }
+    }
+
+    @Test
+    public void missingTokenFriendRequestTest() {
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(mySqlConnector);
+
+        when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
+        when(mySqlConnector.findByUsername(Unai.getUsername())).thenReturn(Optional.of(Unai));
+
+        try {
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("requested", Unai.getUsername()));
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
+            assertEquals(HttpURLConnection.HTTP_UNAUTHORIZED, response.statusCode());
+            assertTrue(response.body().contains("Token not valid or not present"));
+            verify(mySqlConnector, never()).addFriendRequest(Alberto, Unai);
+        } catch (IOException | InterruptedException ex) {
+            fail("Unexpected exception happen: " + ex.getMessage());
+        }
+    }
+
+    @Test
+    public void missingRequestedFriendRequestTest() {
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(mySqlConnector);
+
+        when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
+        when(mySqlConnector.findByUsername(Unai.getUsername())).thenReturn(Optional.of(Unai));
+
+        try {
+            String token = UserTokenService.generateToken(Alberto.getUsername());
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token));
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
+            assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
+            assertTrue(response.body().contains("Missing attribute: requested"));
+            verify(mySqlConnector, never()).addFriendRequest(Alberto, Unai);
+        } catch (IOException | InterruptedException ex) {
+            fail("Unexpected exception happen: " + ex.getMessage());
+        }
+    }
+
+    @Test
+    public void requesterNotFoundFriendRequestTest() {
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(mySqlConnector);
+        
+        when(mySqlConnector.findByUsername(Unai.getUsername())).thenReturn(Optional.of(Unai));
+
+        try {
+            String token = UserTokenService.generateToken(Alberto.getUsername());
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Unai.getUsername()));
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
+            assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
+            assertTrue(response.body().contains("Usernames not found"));
+            verify(mySqlConnector, never()).addFriendRequest(Alberto, Unai);
+        } catch (IOException | InterruptedException ex) {
+            fail("Unexpected exception happen: " + ex.getMessage());
+        }
+    }
+
+    @Test
+    public void requestedNotFoundFriendRequestTest() {
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(mySqlConnector);
+
+        when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
+
+        try {
+            String token = UserTokenService.generateToken(Alberto.getUsername());
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Unai.getUsername()));
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
+            assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
+            assertTrue(response.body().contains("Usernames not found"));
+            verify(mySqlConnector, never()).addFriendRequest(Alberto, Unai);
         } catch (IOException | InterruptedException ex) {
             fail("Unexpected exception happen: " + ex.getMessage());
         }

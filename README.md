@@ -1,11 +1,12 @@
 # Beta-App
 
 ## Cómo usar
-1. Ejecuta el [script sql](exercises_gym_exercises.sql) en MySql Workbench
-2. Modifica el contenido del [fichero de variables de entorno](src/main/resources/application.properties) susitutyendo la Url, usuario y contraseña de la base de datos
-3. Ejecuta el servidor, ejecutando la clase [App](src/main/java/server/App.java)
-4. Ejecuta el [archivo html inicial](src/main/resources/templates/login.html)
-5. Debería estar todo funcionando y tener comunicación entre el sitio web y el servidor levantado
+1. Verifica que tienes Docker desktop instalado y ábrelo.
+2. En una terminal y dentro del directorio raiz del proyecto, ejecuta `docker-compose up`, esto debería crearte 2 contenedores, uno para mysql y otro para mongodb
+3. Comprueba que no te ha dado errores, y ejecuta los 2 tests de la clase ConnectionsTests.java para comprobar que tienes conexión con las 2 bases de datos.
+4. Ejecuta el servidor, ejecutando la clase [App](src/main/java/server/App.java)
+5. Ejecuta el [archivo html inicial](src/main/resources/templates/login.html)
+6. Debería estar todo funcionando y tener comunicación entre el sitio web y el servidor levantado
 
 ## Segundas responsabilidades
 > [!NOTE]

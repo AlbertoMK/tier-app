@@ -1,0 +1,30 @@
+services:
+  mysql:
+    image: mysql:latest
+    container_name: mysql_container
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: fit_hub
+    volumes:
+      - ./database_scripts/exercises_gym_users.sql:/docker-entrypoint-initdb.d/exercises_gym_users.sql
+      - ./database_scripts/gym_exercises.sql:/docker-entrypoint-initdb.d/gym_exercises.sql
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network
+
+  mongodb:
+    image: mongo
+    container_name: mongodb_container
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+      MONGO_INITDB_DATABASE: tier_app
+    ports:
+      - "27017:27017"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

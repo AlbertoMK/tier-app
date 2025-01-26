@@ -1,5 +1,7 @@
 package server.Database;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
@@ -8,6 +10,10 @@ import org.bson.Document;
 import server.Model.Routine;
 import server.Utils.LoggerService;
 import server.Utils.PropertiesLoader;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class MongoDBConnector implements RoutineRepository{
 
@@ -39,7 +45,17 @@ public class MongoDBConnector implements RoutineRepository{
         MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
         Document newRoutine = new Document("_id", routine.getId())
                   .append("name", routine.getRoutineName())
-                  .append("exercises", routine.getExercises().stream().map(exercise -> exercise.getExerciseName()));
+                  .append("exercises", routine.getExercises().stream().map(exercise -> exercise.getExerciseName()).collect(Collectors.toList()));
         collection.insertOne(newRoutine);
+    }
+
+    public Optional<Routine> findById(int id) {
+        MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
+        Document document = collection.find(new Document("_id", id)).first();
+        Routine routine = new Routine();
+        routine.setId((int)document.get("_id"));
+        routine.setRoutineName((String) document.get("name"));
+        routine.setExercises((List)document.get("exercises"));
+        return Optional.of(routine);
     }
 }

@@ -13,6 +13,11 @@ public class UserTokenService {
     private static final String SECRET_KEY = PropertiesLoader.getProperty("usertokenservice.secretkey");
     private static final long EXPIRATION_TIME = 60 * 60 * 1000; // 1 hour
     private static final Algorithm algorithm = Algorithm.HMAC256(SECRET_KEY);
+    private static JWTVerifier verifier;
+
+    static {
+        verifier = JWT.require(algorithm).build();
+    }
 
     public static String generateToken(String username) {
         return JWT.create()
@@ -29,9 +34,6 @@ public class UserTokenService {
      * @return Username of the user if the token is valid. Throws exception otherwise.
      */
     public static String verifyToken(String token) {
-        JWTVerifier verifier = JWT.require(algorithm).build(); // creates the object in charge of verifying the token
-        DecodedJWT decodedJWT = verifier.verify(token); // decodes the token and gets parameters
-
-        return decodedJWT.getSubject();
+         return verifier.verify(token).getSubject(); // decodes the token and gets parameters
     }
 }

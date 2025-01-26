@@ -12,8 +12,8 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -25,7 +25,7 @@ public class FriendRequestTest {
 
     @Test
     public void sendFriendRequestCorrectly() {
-        MySqlConnector connector = spy(MySqlConnector.class);
+        MySqlConnector connector = mock(MySqlConnector.class);
         when(connector.findFriendRequestsByRequester(requester)).thenReturn(Set.of());
         when(connector.findByUsername(requester.getUsername())).thenReturn(Optional.of(requester));
         when(connector.findByUsername(requested.getUsername())).thenReturn(Optional.of(requested));
@@ -37,7 +37,7 @@ public class FriendRequestTest {
 
     @Test
     public void sendRepeatedFriendRequest() {
-        MySqlConnector connector = spy(MySqlConnector.class);
+        MySqlConnector connector = mock(MySqlConnector.class);
         when(connector.findFriendRequestsByRequester(requester)).thenReturn(Set.of(request));
         when(connector.findByUsername(requester.getUsername())).thenReturn(Optional.of(requester));
 
@@ -48,7 +48,7 @@ public class FriendRequestTest {
 
     @Test
     public void removeFriendRequestCorrectly() {
-        MySqlConnector connector = spy(MySqlConnector.class);
+        MySqlConnector connector = mock(MySqlConnector.class);
         when(connector.findByUsername(requester.getUsername())).thenReturn(Optional.of(requester));
         when(connector.findByUsername(requested.getUsername())).thenReturn(Optional.of(requested));
         when(connector.findFriendRequestsByRequester(requester)).thenReturn(Set.of(request));
@@ -60,7 +60,7 @@ public class FriendRequestTest {
 
     @Test
     public void removeFriendRequestIncorrectly() {
-        MySqlConnector connector = spy(MySqlConnector.class);
+        MySqlConnector connector = mock(MySqlConnector.class);
         when(connector.findByUsername(requester.getUsername())).thenReturn(Optional.of(requester));
         when(connector.findFriendRequestsByRequester(requester)).thenReturn(Set.of());
 

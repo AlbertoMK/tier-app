@@ -15,12 +15,12 @@ public class Routine {
 
     private String routineName;
 
-    private List<Exercise> exercises;
+    private List<ExerciseSet> exerciseSets;
     private int id;
 
     public Routine(int id, String routineName) {
         this.id = id;
         this.routineName = routineName;
-        exercises = new ArrayList<>();
+        exerciseSets = new ArrayList<>();
     }
 }

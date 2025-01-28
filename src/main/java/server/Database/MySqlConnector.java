@@ -16,7 +16,7 @@ public class MySqlConnector implements UserRepository {
 
     private Connection connection;
     private static final String USERS_TABLE_NAME = "users";
-    private static final String FRIEND_REQUEST_NAME = "friend_request";
+    private static final String FRIEND_REQUEST_TABLE_NAME  = "friend_request";
 
     public void connectDatabase() throws SQLException {
         LoggerService.log("Starting connection with mysql database...");
@@ -88,8 +88,7 @@ public class MySqlConnector implements UserRepository {
             PreparedStatement statement = connection.prepareStatement(String.format("INSERT INTO %s VALUES(?,?,?)", USERS_TABLE_NAME));
             statement.setString(1, user.getUsername());
             statement.setString(2, user.getPassword());
-            statement.setString(3, String.format("%d/%d/%d",
-                      user.getDateOfBirth().get(Calendar.YEAR), user.getDateOfBirth().get(Calendar.MONTH) + 1, user.getDateOfBirth().get(Calendar.DAY_OF_MONTH)));
+            statement.setString(3, "" + user.getDateOfBirth().get(Calendar.YEAR) + (user.getDateOfBirth().get(Calendar.MONTH) + 1) + user.getDateOfBirth().get(Calendar.DAY_OF_MONTH));
             statement.executeUpdate();
         } catch (SQLException ex) {
             LoggerService.logerror("Error while inserting user into database");
@@ -99,14 +98,9 @@ public class MySqlConnector implements UserRepository {
     @Override
     public void updateUser(User user) {
         try {
-            PreparedStatement statement = connection.prepareStatement(String.format("""
-                    UPDATE %s
-                    SET password = ?, birth_date = ?
-                    WHERE username = ?
-                    """, USERS_TABLE_NAME));
+            PreparedStatement statement = connection.prepareStatement(String.format("UPDATE %s \nSET password = ?, birth_date = ? \nWHERE username = ?", USERS_TABLE_NAME));
             statement.setString(1, user.getPassword());
-            statement.setString(2, String.format("%d/%d/%d",
-                    user.getDateOfBirth().get(Calendar.YEAR), user.getDateOfBirth().get(Calendar.MONTH) + 1, user.getDateOfBirth().get(Calendar.DAY_OF_MONTH)));
+            statement.setString(2, "" + user.getDateOfBirth().get(Calendar.YEAR) + (user.getDateOfBirth().get(Calendar.MONTH) + 1) + user.getDateOfBirth().get(Calendar.DAY_OF_MONTH));
             statement.executeUpdate();
         } catch (SQLException e) {
             LoggerService.logerror("Error while updating user");
@@ -121,11 +115,10 @@ public class MySqlConnector implements UserRepository {
     @Override
     public void addFriendRequest(FriendRequest friendRequest) {
         try {
-            PreparedStatement statement = connection.prepareStatement(String.format("INSERT INTO %s VALUES(?,?,?)", FRIEND_REQUEST_NAME));
+            PreparedStatement statement = connection.prepareStatement(String.format("INSERT INTO %s VALUES(?,?,?)", FRIEND_REQUEST_TABLE_NAME ));
             statement.setString(1, friendRequest.getRequester().getUsername());
             statement.setString(2, friendRequest.getRequested().getUsername());
-            statement.setString(3, String.format("%d/%d/%d",
-                    friendRequest.getDate().get(Calendar.YEAR), friendRequest.getDate().get(Calendar.MONTH) + 1, friendRequest.getDate().get(Calendar.DAY_OF_MONTH)));
+            statement.setString(3, "" + friendRequest.getDate().get(Calendar.YEAR) + (friendRequest.getDate().get(Calendar.MONTH) + 1) + friendRequest.getDate().get(Calendar.DAY_OF_MONTH));
             statement.executeUpdate();
         } catch (SQLException e) {
             LoggerService.logerror("Error while adding friendship");

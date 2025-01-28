@@ -34,9 +34,7 @@ public class FriendRequestService {
 
         if (getRequestsAsRequester(requester).contains(requested))
             return false;
-        User userRequester = userRepository.findByUsername(requester).get();
-        User userRequested = userRepository.findByUsername(requested).get();
-        userRepository.addFriendRequest(new FriendRequest(userRequester, userRequested, Calendar.getInstance()));
+        userRepository.addFriendRequest(friendRequest);
         return true;
     }
 
@@ -45,9 +43,7 @@ public class FriendRequestService {
         String requester = friendRequest.getRequester().getUsername();
 
         if (getRequestsAsRequester(requester).contains(requested)) {
-            User userRequester = userRepository.findByUsername(requester).get();
-            User userRequested = userRepository.findByUsername(requested).get();
-            userRepository.deleteFriendRequest(new FriendRequest(userRequester, userRequested, Calendar.getInstance()));
+            userRepository.deleteFriendRequest(friendRequest);
             return true;
         } else
             return false;

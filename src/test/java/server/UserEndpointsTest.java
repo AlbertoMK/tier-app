@@ -168,6 +168,26 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     }
 
     @Test
+    public void createTooLongUsernameUserEndpointTest() {
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
+
+        when(mySqlConnector.findByUsername(anyString())).thenReturn(Optional.empty());
+        App.attachDatabaseManager(mySqlConnector);
+
+        User user1 = new User("ABCDQWERTIYOPASDFGHJKLÑZXCMVNAS", "password", Calendar.getInstance());
+        try {
+            String requestBody = new ObjectMapper().writeValueAsString(user1);
+            HttpResponse<String> response = makeHttpRequest("user", HttpMethod.POST, requestBody);
+
+            verify(mySqlConnector, never()).addUser(any());
+            assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
+            assertTrue(response.body().contains("Username too long."));
+        } catch (IOException | InterruptedException ex) {
+            fail("Unexpected exception happen: " + ex.getMessage());
+        }
+    }
+
+    @Test
     public void createShortPasswordUserEndpointTest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 

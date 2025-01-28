@@ -24,6 +24,7 @@ public class UserController extends GenericHTTPHandler {
     private static BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
     private static final int MIN_USERNAME_LENGHT = 5;
+    private static final int MAX_USERNAME_LENGTH = 30;
     private static final int MIN_PASSWORD_LENGHT = 8;
     private static final String BODY_TOKEN_KEY = "session-token";
 
@@ -175,6 +176,10 @@ public class UserController extends GenericHTTPHandler {
             User user = objectMapper.convertValue(body, User.class);
             if (user.getUsername().length() < MIN_USERNAME_LENGHT) {
                 response = String.format("Username too short. Min %d characters", MIN_USERNAME_LENGHT);
+                httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                isJson = false;
+            } else if (user.getUsername().length() > MAX_USERNAME_LENGTH) {
+                response = String.format("Username too long. Max %d characters", MAX_USERNAME_LENGTH);
                 httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
                 isJson = false;
             } else if (user.getPassword().length() < MIN_PASSWORD_LENGHT) {

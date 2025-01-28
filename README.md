@@ -30,7 +30,8 @@
 - Aplicación que se puedan poner objetivos individuales a cumplir y los innovador serían los eventos o objetivos grupales  
 - Tener una parte competitiva con más gente a nivel colectivo  
 - Métricas y logros, estadísticas y mucha información  
-- Simplicidad y comodez para el usuario  
+- Simplicidad y comodez para el usuario
+- Rutinas personalizadas de personas famosas o una parte con rutinas favoritas de la comunidad (cada usuario puede dar likes o dislikes a las rutinas). Las rutinas que más gustan aparecerán más arriba de la lista
 
 - Parte competitiva:  
 Retos y logros individuales, autoprogreso.  

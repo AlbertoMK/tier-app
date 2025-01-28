@@ -111,7 +111,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void createValidUserEndpointTest() {
-        MySqlConnector mySqlConnector = spy(MySqlConnector.class);
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.empty());
         App.attachDatabaseManager(mySqlConnector);
@@ -130,7 +130,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void createRepeatedUsernameUserEndpointTest() {
-        MySqlConnector mySqlConnector = spy(MySqlConnector.class);
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
         App.attachDatabaseManager(mySqlConnector);
@@ -149,7 +149,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void createShortUsernameUserEndpointTest() {
-        MySqlConnector mySqlConnector = spy(MySqlConnector.class);
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
         when(mySqlConnector.findByUsername(anyString())).thenReturn(Optional.empty());
         App.attachDatabaseManager(mySqlConnector);
@@ -169,7 +169,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void createShortPasswordUserEndpointTest() {
-        MySqlConnector mySqlConnector = spy(MySqlConnector.class);
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
         when(mySqlConnector.findByUsername(anyString())).thenReturn(Optional.empty());
         App.attachDatabaseManager(mySqlConnector);

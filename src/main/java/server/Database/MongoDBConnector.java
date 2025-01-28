@@ -1,9 +1,6 @@
 package server.Database;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
+import com.mongodb.client.*;
 import org.bson.Document;
 import server.Model.Routine;
 import server.Utils.LoggerService;
@@ -43,7 +40,7 @@ public class MongoDBConnector implements RoutineRepository{
         MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
         Document newRoutine = new Document("_id", routine.getId())
                   .append("name", routine.getRoutineName())
-                  .append("exercises", routine.getExercises().stream().map(exercise -> exercise.getExerciseName()).collect(Collectors.toList()));
+                  .append("exercises", routine.getExerciseSets().stream().map(exercise -> exercise.getExercise().getExerciseName()).collect(Collectors.toList()));
         collection.insertOne(newRoutine);
     }
 
@@ -53,7 +50,7 @@ public class MongoDBConnector implements RoutineRepository{
         Routine routine = new Routine();
         routine.setId((int)document.get("_id"));
         routine.setRoutineName((String) document.get("name"));
-        routine.setExercises((List)document.get("exercises"));
+        routine.setExerciseSets((List)document.get("exercises"));
         return Optional.of(routine);
     }
 }

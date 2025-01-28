@@ -41,6 +41,6 @@ public class ConnectionsTest {
         Routine retrievedRoutine = c.findById(5).get();
         assertEquals(routine.getId(), retrievedRoutine.getId());
         assertEquals(routine.getRoutineName(), retrievedRoutine.getRoutineName());
-        assertEquals(routine.getExercises(), retrievedRoutine.getExercises());
+        assertEquals(routine.getExerciseSets(), retrievedRoutine.getExerciseSets());
     }
 }

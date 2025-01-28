@@ -9,9 +9,9 @@ import lombok.Setter;
 @Builder
 public class Set {
     private int reps;
-    private int weight;
-    private int distance;
-    private int duration;
+    private double weight; // In kg
+    private double distance; // In km
+    private int duration; // In seconds
     private SetType setType;
 
     public enum SetType {

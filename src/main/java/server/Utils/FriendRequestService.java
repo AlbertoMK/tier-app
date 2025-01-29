@@ -1,8 +1,10 @@
 package server.Utils;
 
 import server.Database.UserRepository;
+import server.Model.FriendRequest;
 import server.Model.User;
 
+import java.util.Calendar;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -26,20 +28,22 @@ public class FriendRequestService {
         instance = new FriendRequestService(userRepository);
     }
 
-    public boolean addRequest(String requester, String requested) {
+    public boolean addRequest(FriendRequest friendRequest) {
+        String requested = friendRequest.getRequested().getUsername();
+        String requester = friendRequest.getRequester().getUsername();
+
         if (getRequestsAsRequester(requester).contains(requested))
             return false;
-        User userRequester = userRepository.findByUsername(requester).get();
-        User userRequested = userRepository.findByUsername(requested).get();
-        userRepository.addFriendRequest(userRequester, userRequested);
+        userRepository.addFriendRequest(friendRequest);
         return true;
     }
 
-    public boolean removeRequest(String requester, String requested) {
+    public boolean removeRequest(FriendRequest friendRequest) {
+        String requested = friendRequest.getRequested().getUsername();
+        String requester = friendRequest.getRequester().getUsername();
+
         if (getRequestsAsRequester(requester).contains(requested)) {
-            User userRequester = userRepository.findByUsername(requester).get();
-            User userRequested = userRepository.findByUsername(requested).get();
-            userRepository.deleteFriendRequest(userRequester, userRequested);
+            userRepository.deleteFriendRequest(friendRequest);
             return true;
         } else
             return false;

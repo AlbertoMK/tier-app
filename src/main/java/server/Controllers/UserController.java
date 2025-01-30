@@ -124,20 +124,25 @@ public class UserController extends GenericHTTPHandler {
                     httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
                     isJson = false;
                 }
-                else if (userRepository.findByUsername(requester).isPresent() && userRepository.findByUsername(requested).isPresent()) {
-                    if (FriendRequestService.getInstance().removeRequest(requester, requested)) {
-                        response = "Friend request removed";
-                        httpStatus = HttpURLConnection.HTTP_OK;
-                        isJson = false;
-                    } else {
+                else {
+                    Optional<User> requesterUser = userRepository.findByUsername(requester);
+                    Optional<User> requestedUser = userRepository.findByUsername(requested);
+                    if (requesterUser.isPresent() && requestedUser.isPresent()) {
+                        FriendRequest friendRequest = new FriendRequest(requesterUser.get(), requestedUser.get(), Calendar.getInstance());
+                        if (FriendRequestService.getInstance().removeRequest(friendRequest)) {
+                            response = "Friend request removed";
+                            httpStatus = HttpURLConnection.HTTP_OK;
+                            isJson = false;
+                        } else {
                             response = "This user hasn't an existing friend request";
-                        httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                            httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                            isJson = false;
+                        }
+                    } else {
+                        response = "Usernames not found";
+                        httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
                         isJson = false;
                     }
-                } else {
-                    response = "Usernames not found";
-                    httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
-                    isJson = false;
                 }
             }
         } catch (IOException e) {

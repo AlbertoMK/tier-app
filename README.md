@@ -8,6 +8,9 @@
 5. Ejecuta el [archivo html inicial](src/main/resources/templates/login.html)
 6. Debería estar todo funcionando y tener comunicación entre el sitio web y el servidor levantado
 
+> [!WARNING]
+> Si han habido cambios en las bases de datos desde la última vez que hiciste `docker-compose up` o cuando quieras eliminar todos los datos de la base de datos, debes hacer `docker-compose down` para eliminar los contenedores y de vuelta `docker-compose up` para que se vuelvan a generar.
+
 ## Segundas responsabilidades
 > [!NOTE]
 > - **Alonso:** Product Manager  

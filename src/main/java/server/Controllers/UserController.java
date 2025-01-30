@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import server.Database.UserRepository;
+import server.Model.FriendRequest;
 import server.Model.User;
 import server.Utils.FriendRequestService;
 import server.Utils.LoggerService;
@@ -14,6 +15,7 @@ import server.Utils.Utils;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -103,7 +105,9 @@ public class UserController extends GenericHTTPHandler {
                     isJson = false;
                 }
                 else if (userRepository.findByUsername(requester).isPresent() && userRepository.findByUsername(requested).isPresent()) {
-                    if (FriendRequestService.getInstance().addRequest(requester, requested)) {
+                    User requesterUser = userRepository.findByUsername(requester).get();
+                    User requestedUser = userRepository.findByUsername(requested).get();
+                    if (FriendRequestService.getInstance().addRequest(new FriendRequest(requesterUser, requestedUser, Calendar.getInstance()))) {
                         response = "Friend request sent";
                         httpStatus = HttpURLConnection.HTTP_OK;
                         isJson = false;

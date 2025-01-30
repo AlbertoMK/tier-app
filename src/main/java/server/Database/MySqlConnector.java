@@ -1,6 +1,8 @@
 package server.Database;
 
+import server.Model.Exercise;
 import server.Model.FriendRequest;
+import server.Model.GymExercise;
 import server.Model.User;
 import server.Utils.LoggerService;
 import server.Utils.PropertiesLoader;
@@ -8,14 +10,17 @@ import server.Utils.PropertiesLoader;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-public class MySqlConnector implements UserRepository {
+public class MySqlConnector implements UserRepository, ExerciseRepository {
 
     private Connection connection;
     private static final String USERS_TABLE_NAME = "users";
+    private static final String EXERCISES_TABLE_NAME = "exercises";
 
     public void connectDatabase() throws SQLException {
         LoggerService.log("Starting connection with mysql database...");
@@ -41,6 +46,8 @@ public class MySqlConnector implements UserRepository {
         }
     }
 
+    // USERS
+
     @Override
     public Optional<User> findByUsername(String username) { // not finished
         try {
@@ -62,7 +69,7 @@ public class MySqlConnector implements UserRepository {
     }
 
     @Override
-    public List<User> findAll() {
+    public List<User> findAllUsers() {
         return new ArrayList<>();
     }
 
@@ -107,5 +114,51 @@ public class MySqlConnector implements UserRepository {
     @Override
     public Set<FriendRequest> findFriendRequestsByRequested(User requested) {
         return null;
+    }
+
+    // EXERCISES
+
+    @Override
+    public Optional<Exercise> findExerciseByName(String exerciseName) {
+        return Optional.of(findExerciseWithFilters(Map.of("exercise_name", exerciseName)).iterator().next());
+    }
+
+    @Override
+    public Set<Exercise> findAllExercises() {
+        return findExerciseWithFilters(Map.of());
+    }
+
+    @Override
+    public Set<Exercise> findExerciseWithFilters(Map<String, String> filters) {
+        try {
+            Set<Exercise> set = new HashSet<>();
+            String query = String.format("SELECT * FROM %s WHERE 1=1", EXERCISES_TABLE_NAME);
+            List<String> filterList = new ArrayList<>();
+            for (String filter : filters.keySet()) {
+                query = query + String.format(" AND %s = ?", filter);
+                filterList.add(filters.get(filter));
+            }
+            PreparedStatement preparedStatement = connection.prepareStatement(query);
+            for (int i = 0; i < filterList.size(); i++) {
+                preparedStatement.setString(i + 1, filterList.get(i));
+            }
+            ResultSet rs = preparedStatement.executeQuery();
+            while (rs.next()) {
+                String exerciseName = rs.getString("exercise_name");
+                Exercise.SetsType setsType = Exercise.SetsType.valueOf(rs.getString("sets_type").toUpperCase());
+                GymExercise.DifficultyLevel difficultyLevel = GymExercise.DifficultyLevel.valueOf(rs.getString("difficulty").toUpperCase().replace(" ", "_"));
+                GymExercise.MuscleGroup muscleGroup = GymExercise.MuscleGroup.valueOf(rs.getString("muscle_group").toUpperCase().replace(" ", "_"));
+                GymExercise.Equipment equipment = GymExercise.Equipment.valueOf(rs.getString("equipment").toUpperCase().replace(" ", "_"));
+                GymExercise.SingleArm singleArm = GymExercise.SingleArm.valueOf(rs.getString("single_double_arm").toUpperCase().replace(" ", "_"));
+                GymExercise.Grip grip = GymExercise.Grip.valueOf(rs.getString("grip").toUpperCase().replace(" ", "_"));
+                GymExercise.BodyRegion bodyRegion = GymExercise.BodyRegion.valueOf(rs.getString("body_region").toUpperCase().replace(" ", "_"));
+                GymExercise exercise = new GymExercise(exerciseName, setsType, difficultyLevel, muscleGroup, equipment, singleArm, grip, bodyRegion);
+                set.add(exercise);
+            }
+            return set;
+        } catch (SQLException ex) {
+            LoggerService.logerror("Error while retrieving exercises with filters");
+            return Set.of();
+        }
     }
 }

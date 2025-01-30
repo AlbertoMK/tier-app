@@ -9,8 +9,14 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public abstract class Exercise {
 
-    protected String exerciseName;
+    public enum SetsType {
+        WEIGHTED_REPETITIONS,
+        REPETITIONS,
+        TIME,
+        TIME_DISTANCE
+    }
 
-    protected String description;
+    protected String exerciseName;
+    protected SetsType setsType;
 
 }

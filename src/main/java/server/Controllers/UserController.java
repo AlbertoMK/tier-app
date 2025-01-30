@@ -250,7 +250,7 @@ public class UserController extends GenericHTTPHandler {
     }
 
     private Object[] getAllUsersEndpoint() {
-        List<User> users = userRepository.findAll();
+        List<User> users = userRepository.findAllUsers();
         String response;
         int httpStatus;
         boolean isJson;

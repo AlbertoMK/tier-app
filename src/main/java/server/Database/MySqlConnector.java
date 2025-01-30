@@ -84,8 +84,9 @@ public class MySqlConnector implements UserRepository {
             PreparedStatement statement = connection.prepareStatement(String.format("INSERT INTO %s VALUES(?,?,?)", USERS_TABLE_NAME));
             statement.setString(1, user.getUsername());
             statement.setString(2, user.getPassword());
+            Calendar dateOfBirth = user.getDateOfBirth();
             statement.setString(3, String.format("%d/%d/%d",
-                    user.getDateOfBirth().get(Calendar.YEAR), user.getDateOfBirth().get(Calendar.MONTH) + 1, user.getDateOfBirth().get(Calendar.DAY_OF_MONTH)));
+                    dateOfBirth.get(Calendar.YEAR), dateOfBirth.get(Calendar.MONTH) + 1, dateOfBirth.get(Calendar.DAY_OF_MONTH)));
             statement.executeUpdate();
         } catch (SQLException ex) {
             LoggerService.logerror("Error while inserting user into database");
@@ -103,9 +104,9 @@ public class MySqlConnector implements UserRepository {
             PreparedStatement statement = connection.prepareStatement(String.format("INSERT INTO %s VALUES(?,?,?)", FRIEND_REQUEST_TABLE_NAME));
             statement.setString(1, friendRequest.getRequester().getUsername());
             statement.setString(2, friendRequest.getRequested().getUsername());
-            Calendar.getInstance();
+            Calendar date = friendRequest.getDate();
             statement.setString(3, String.format("%d/%d/%d",
-                    Calendar.YEAR, Calendar.MONTH + 1, Calendar.DAY_OF_MONTH));
+                    date.get(Calendar.YEAR), date.get(Calendar.MONTH) + 1, date.get(Calendar.DAY_OF_MONTH)));
             statement.executeUpdate();
         } catch (SQLException e) {
             LoggerService.logerror("Error while adding friendship");
@@ -115,7 +116,8 @@ public class MySqlConnector implements UserRepository {
     @Override
     public void deleteFriendRequest(FriendRequest friendRequest) {
         try {
-            PreparedStatement statement = connection.prepareStatement(String.format("DELETE FROM %s WHERE requester='%s' AND requested='%s'", FRIEND_REQUEST_TABLE_NAME, friendRequest.getRequester().getUsername(), friendRequest.getRequested().getUsername()));
+            PreparedStatement statement = connection.prepareStatement(String.format("DELETE FROM %s WHERE requester='%s' AND requested='%s'",
+                      FRIEND_REQUEST_TABLE_NAME, friendRequest.getRequester().getUsername(), friendRequest.getRequested().getUsername()));
             statement.executeUpdate();
         } catch (SQLException e) {
             LoggerService.logerror("Error while deleting friend request");

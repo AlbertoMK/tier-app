@@ -27,6 +27,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get install docker-compose
+
+      - name: Build and start containers with Docker Compose
+        run: |
+          docker-compose up -d
+
+      - name: Wait for databases to be ready
+        run: |
+          sleep 10
+
       # Generates report about line coverage
       - name: Build and test with coverage
         run: mvn clean verify

@@ -31,7 +31,7 @@ public class ServerEndpointsTest {
             case GET -> requestBuilder.GET();
             case POST -> requestBuilder.POST(HttpRequest.BodyPublishers.ofString(body));
             case PUT -> requestBuilder.PUT(HttpRequest.BodyPublishers.ofString(body));
-            case DELETE -> requestBuilder.DELETE();
+            case DELETE -> requestBuilder.method("DELETE", HttpRequest.BodyPublishers.ofString(body));
         }
         HttpRequest request = requestBuilder.build();
         return client.send(request, HttpResponse.BodyHandlers.ofString());

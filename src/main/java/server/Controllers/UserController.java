@@ -85,6 +85,75 @@ public class UserController extends GenericHTTPHandler {
         Utils.httpResponse(exchange, httpStatus, isJson, response);
     }
 
+    protected void handleDeleteRequest(HttpExchange exchange) {
+        Optional<String> nextSegment = getNextSegment(exchange.getRequestURI(), 1);
+        Object[] res;
+
+        // /user/friend -> Deletes an existent friend request to requestedUsername
+        if (nextSegment.isPresent() && nextSegment.get().equals("friend")) {
+            res = deleteFriendRequest(exchange);
+        }
+
+        else {
+            res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST};
+        }
+
+        String response = (String) res[0];
+        int httpStatus = (int) res[1];
+        boolean isJson = (boolean) res[2];
+        Utils.httpResponse(exchange, httpStatus, isJson, response);
+    }
+
+    private Object[] deleteFriendRequest(HttpExchange exchange) {
+        String response;
+        int httpStatus;
+        boolean isJson;
+
+        try {
+            Map<String, String> body = extractJsonBody(exchange);
+            Optional<String> requesterOptional = requiresToken(body);
+            if (requesterOptional.isEmpty()) {
+                response = "Token not valid or not present";
+                httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
+                isJson = false;
+            } else {
+                String requester = requesterOptional.get();
+                String requested = body.get("requested");
+                if (requested == null) {
+                    response = "Missing attribute: requested";
+                    httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                    isJson = false;
+                }
+                else {
+                    Optional<User> requesterUser = userRepository.findByUsername(requester);
+                    Optional<User> requestedUser = userRepository.findByUsername(requested);
+                    if (requesterUser.isPresent() && requestedUser.isPresent()) {
+                        FriendRequest friendRequest = new FriendRequest(requesterUser.get(), requestedUser.get(), Calendar.getInstance());
+                        if (FriendRequestService.getInstance().removeRequest(friendRequest)) {
+                            response = "Friend request removed";
+                            httpStatus = HttpURLConnection.HTTP_OK;
+                            isJson = false;
+                        } else {
+                            response = "This user hasn't an existing friend request";
+                            httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                            isJson = false;
+                        }
+                    } else {
+                        response = "Usernames not found";
+                        httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
+                        isJson = false;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            response = "Internal error";
+            httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            isJson = false;
+            LoggerService.logerror("Internal error while obtaining http body from request.");
+        }
+        return new Object[]{response, httpStatus, isJson};
+    }
+
     private Object[] createFriendRequest(HttpExchange exchange) {
         String response;
         int httpStatus;

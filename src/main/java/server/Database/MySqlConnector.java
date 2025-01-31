@@ -5,12 +5,7 @@ import server.Model.User;
 import server.Utils.LoggerService;
 import server.Utils.PropertiesLoader;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashSet;
@@ -45,6 +40,17 @@ public class MySqlConnector implements UserRepository {
             } catch (SQLException e) {
                 LoggerService.logerror("Error closing connection");
             }
+        }
+    }
+
+    public void truncateUserTables() {
+        try {
+            Statement statement = connection.createStatement();
+            statement.executeUpdate("TRUNCATE TABLE " + USERS_TABLE_NAME);
+            statement = connection.createStatement();
+            statement.executeUpdate("TRUNCATE TABLE " + FRIEND_REQUEST_TABLE_NAME);
+        } catch (SQLException ex) {
+            LoggerService.logerror("Error while truncating users tables");
         }
     }
 
@@ -115,8 +121,7 @@ public class MySqlConnector implements UserRepository {
             statement.setString(1, friendRequest.getRequester().getUsername());
             statement.setString(2, friendRequest.getRequested().getUsername());
             Calendar date = friendRequest.getDate();
-            statement.setString(3, String.format("%d/%d/%d",
-                    date.get(Calendar.YEAR), date.get(Calendar.MONTH) + 1, date.get(Calendar.DAY_OF_MONTH)));
+            statement.setTimestamp(3, new Timestamp(date.getTimeInMillis()));
             statement.executeUpdate();
         } catch (SQLException e) {
             LoggerService.logerror("Error while adding friendship");
@@ -145,10 +150,14 @@ public class MySqlConnector implements UserRepository {
                 Optional<User> requestedUser = findByUsername(rs.getString("requested"));
                 friendRequest.setRequester(requester);
                 friendRequest.setRequested(requestedUser.get());
+                Calendar date = Calendar.getInstance();
+                date.setTime(rs.getTimestamp("date"));
+                friendRequest.setDate(date);
                 friendRequestSet.add(friendRequest);
             }
         } catch (Exception e) {
             LoggerService.logerror("Error finding friend request");
+            System.err.println(e.getMessage());
         }
         return friendRequestSet;
     }
@@ -164,6 +173,9 @@ public class MySqlConnector implements UserRepository {
                 Optional<User> requesterUser = findByUsername(rs.getString("requester"));
                 friendRequest.setRequester(requesterUser.get());
                 friendRequest.setRequested(requested);
+                Calendar date = Calendar.getInstance();
+                date.setTime(rs.getTimestamp("date"));
+                friendRequest.setDate(date);
                 friendRequestSet.add(friendRequest);
             }
         } catch (Exception e) {

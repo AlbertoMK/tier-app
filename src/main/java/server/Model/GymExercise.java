@@ -2,7 +2,6 @@ package server.Model;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 
 @Getter
 public class GymExercise extends Exercise {
@@ -15,7 +14,7 @@ public class GymExercise extends Exercise {
         EXPERT,
         LEGENDARY,
         MASTER,
-        GRANDMASTER
+        GRAND_MASTER
     }
 
     public enum MuscleGroup {
@@ -40,7 +39,7 @@ public class GymExercise extends Exercise {
     public enum Equipment {
         STABILITY_BALL,
         BODYWEIGHT,
-        GYMNASTICS_RINGS,
+        GYMNASTIC_RINGS,
         PARALLETTE_BARS,
         DUMBBELL,
         KETTLEBELL,
@@ -77,8 +76,8 @@ public class GymExercise extends Exercise {
     }
 
     public enum SingleArm {
-        NO_ARM,
-        ONE_ARM,
+        NO_ARMS,
+        SINGLE_ARM,
         DOUBLE_ARM
     }
 
@@ -105,7 +104,7 @@ public class GymExercise extends Exercise {
 
     public enum BodyRegion {
         LOWER_BODY,
-        MID_SECTION,
+        MIDSECTION,
         UPPER_BODY,
         FULL_BODY,
         UNSORTED // We should complete DB to meet any Body region

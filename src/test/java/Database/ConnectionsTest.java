@@ -16,7 +16,6 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class ConnectionsTest {
 
     @Test
-    @Disabled("Use this test to try if you have connection with MySQL database via Docker")
     public void tryMySQLConnection() throws SQLException {
         MySqlConnector c = new MySqlConnector();
         c.connectDatabase();
@@ -32,7 +31,6 @@ public class ConnectionsTest {
     }
 
     @Test
-    @Disabled("Use this test to try if you have connection with MongoDB database via Docker")
     public void tryMongoDBConnection() throws SQLException {
         MongoDBConnector c = new MongoDBConnector();
         c.connectDatabase();

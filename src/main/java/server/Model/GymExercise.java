@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @Getter
-@AllArgsConstructor
 public class GymExercise extends Exercise {
 
     public enum DifficultyLevel {
@@ -15,7 +14,7 @@ public class GymExercise extends Exercise {
         EXPERT,
         LEGENDARY,
         MASTER,
-        GRANDMASTER
+        GRAND_MASTER
     }
 
     public enum MuscleGroup {
@@ -40,7 +39,7 @@ public class GymExercise extends Exercise {
     public enum Equipment {
         STABILITY_BALL,
         BODYWEIGHT,
-        GYMNASTICS_RINGS,
+        GYMNASTIC_RINGS,
         PARALLETTE_BARS,
         DUMBBELL,
         KETTLEBELL,
@@ -77,8 +76,8 @@ public class GymExercise extends Exercise {
     }
 
     public enum SingleArm {
-        NO_ARM,
-        ONE_ARM,
+        NO_ARMS,
+        SINGLE_ARM,
         DOUBLE_ARM
     }
 
@@ -105,9 +104,21 @@ public class GymExercise extends Exercise {
 
     public enum BodyRegion {
         LOWER_BODY,
-        MID_SECTION,
+        MIDSECTION,
         UPPER_BODY,
-        FULL_BODY
+        FULL_BODY,
+        UNSORTED // We should complete DB to meet any Body region
+    }
+
+    public GymExercise(String exerciseName, SetsType setsType, DifficultyLevel difficultyLevel, MuscleGroup muscleGroup,
+                       Equipment equipment, SingleArm arm, Grip grip, BodyRegion bodyRegion) {
+        super(exerciseName, setsType);
+        this.difficultyLevel = difficultyLevel;
+        this.muscleGroup = muscleGroup;
+        this.equipment = equipment;
+        this.arm = arm;
+        this.grip = grip;
+        this.bodyRegion = bodyRegion;
     }
 
     private DifficultyLevel difficultyLevel;

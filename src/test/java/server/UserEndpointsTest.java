@@ -95,7 +95,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     public void userFindAllEndpointTest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
-        when(mySqlConnector.findAll()).thenReturn(List.of(Alberto, Alonso, Nico, Unai));
+        when(mySqlConnector.findAllUsers()).thenReturn(List.of(Alberto, Alonso, Nico, Unai));
         App.attachDatabaseManager(mySqlConnector);
 
         try {
@@ -110,7 +110,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     public void userFindAllEmptyEndpointTest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
-        when(mySqlConnector.findAll()).thenReturn(new ArrayList<>());
+        when(mySqlConnector.findAllUsers()).thenReturn(new ArrayList<>());
         App.attachDatabaseManager(mySqlConnector);
 
         try {

@@ -10,7 +10,7 @@ import java.util.Set;
 public interface UserRepository {
 
     public Optional<User> findByUsername(String username);
-    public List<User> findAll();
+    public List<User> findAllUsers();
     public void addUser(User user);
     public void addFriendship(User user1, User user2);
     public void addFriendRequest(FriendRequest friendRequest);

@@ -68,7 +68,7 @@ public class UserDBTests {
         connector.addUser(user2);
         connector.addUser(user3);
 
-        List<User> users = connector.findAll();
+        List<User> users = connector.findAllUsers();
         assertTrue(users.size() == 3);
         assertTrue(users.stream().map(User::getUsername).collect(Collectors.toSet())
                 .containsAll(Set.of("nombre1", "nombre2", "nombre3")));
@@ -76,7 +76,7 @@ public class UserDBTests {
 
     @Test
     public void findEmptySetUsers() {
-        List<User> users = connector.findAll();
+        List<User> users = connector.findAllUsers();
         assertTrue(users.isEmpty());
     }
 

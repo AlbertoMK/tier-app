@@ -58,6 +58,7 @@ public class UserController extends GenericHTTPHandler {
     // POST /user
     protected void handlePostRequest(HttpExchange exchange) {
         Optional<String> nextSegment = getNextSegment(exchange.getRequestURI(), 1);
+        Optional<String> secondSegment = getNextSegment(exchange.getRequestURI(), 2);
         Object[] res;
 
         // /user -> Creates a new user
@@ -71,8 +72,18 @@ public class UserController extends GenericHTTPHandler {
         }
 
         // /user/friend -> Creates a friend request to requestedUsername
-        else if (nextSegment.isPresent() && nextSegment.get().equals("friend")) {
+        else if (nextSegment.isPresent() && nextSegment.get().equals("friend") && secondSegment.isEmpty()) {
             res = createFriendRequest(exchange);
+        }
+
+        // /user/friend/accept -> Acepta una solicitud de amistad
+        else if (nextSegment.isPresent() && nextSegment.get().equals("friend") && secondSegment.isPresent() && secondSegment.get().equals("accept")) {
+            res = acceptFriendRequest(exchange);
+        }
+
+        // /user/friend/reject -> Rechaza una solicitud de amistad
+        else if (nextSegment.isPresent() && nextSegment.get().equals("friend") && secondSegment.isPresent() && secondSegment.get().equals("reject")) {
+            res = declineFriendRequest(exchange);
         }
 
         else {
@@ -185,6 +196,97 @@ public class UserController extends GenericHTTPHandler {
                         httpStatus = HttpURLConnection.HTTP_CONFLICT;
                         isJson = false;
                     }
+                } else {
+                    response = "Usernames not found";
+                    httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
+                    isJson = false;
+                }
+            }
+        } catch (IOException e) {
+            response = "Internal error";
+            httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            isJson = false;
+            LoggerService.logerror("Internal error while obtaining http body from request.");
+        }
+        return new Object[]{response, httpStatus, isJson};
+    }
+
+    private Object[] acceptFriendRequest(HttpExchange exchange) {
+        String response;
+        int httpStatus;
+        boolean isJson;
+        try {
+            Map<String, String> body = extractJsonBody(exchange);
+            Optional<String> requesterOptional = requiresToken(body);
+            if (requesterOptional.isEmpty()) {
+                response = "Token not valid or not present";
+                httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
+                isJson = false;
+            } else {
+                String requested = requesterOptional.get();
+                String requester = body.get("requester");
+                if (requester == null) {
+                    response = "Missing attribute: requester";
+                    httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                    isJson = false;
+                } else if (userRepository.findByUsername(requested).isPresent() && userRepository.findByUsername(requester).isPresent()) {
+
+                    User requesterUser = userRepository.findByUsername(requester).get();
+                    User requestedUser = userRepository.findByUsername(requested).get();
+                    FriendRequest friendRequest = new FriendRequest(requesterUser, requestedUser, Calendar.getInstance());
+                    if (FriendRequestService.getInstance().friendRequestExists(requesterUser, requestedUser)) {
+//                        requesterUser.addFriend(requestedUser); Solo modelo luego se borra
+                        userRepository.addFriend(friendRequest);
+                        FriendRequestService.getInstance().removeRequest(friendRequest);
+                        response = "Friend request accepted";
+                        httpStatus = HttpURLConnection.HTTP_OK;
+                    } else {
+                        response = "No pending friend request found";
+                        httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                    }
+
+                    isJson = false;
+                } else {
+                    response = "Usernames not found";
+                    httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
+                    isJson = false;
+                }
+            }
+        } catch (IOException e) {
+            response = "Internal error";
+            httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            isJson = false;
+            LoggerService.logerror("Internal error while obtaining http body from request.");
+        }
+        return new Object[]{response, httpStatus, isJson};
+    }
+
+    private Object[] declineFriendRequest(HttpExchange exchange) {
+        String response;
+        int httpStatus;
+        boolean isJson;
+        try {
+            Map<String, String> body = extractJsonBody(exchange);
+            Optional<String> requesterOptional = requiresToken(body);
+            if (requesterOptional.isEmpty()) {
+                response = "Token not valid or not present";
+                httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
+                isJson = false;
+            } else {
+                String requester = requesterOptional.get();
+                String requested = body.get("requested");
+                if (requested == null) {
+                    response = "Missing attribute: requested";
+                    httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                    isJson = false;
+                } else if (userRepository.findByUsername(requester).isPresent() && userRepository.findByUsername(requested).isPresent()) {
+                    User requesterUser = userRepository.findByUsername(requester).get();
+                    User requestedUser = userRepository.findByUsername(requested).get();
+                    FriendRequest friendRequest = new FriendRequest(requesterUser, requestedUser, Calendar.getInstance());
+                    userRepository.deleteFriendRequest(friendRequest);
+                    response = "Friend request declined";
+                    httpStatus = HttpURLConnection.HTTP_OK;
+                    isJson = false;
                 } else {
                     response = "Usernames not found";
                     httpStatus = HttpURLConnection.HTTP_NOT_FOUND;

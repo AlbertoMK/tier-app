@@ -76,12 +76,12 @@ public class UserController extends GenericHTTPHandler {
             res = createFriendRequest(exchange);
         }
 
-        // /user/friend/accept -> Acepta una solicitud de amistad
+        // /user/friend/accept -> Accepts a friend request
         else if (nextSegment.isPresent() && nextSegment.get().equals("friend") && secondSegment.isPresent() && secondSegment.get().equals("accept")) {
             res = acceptFriendRequest(exchange);
         }
 
-        // /user/friend/reject -> Rechaza una solicitud de amistad
+        // /user/friend/reject -> Rejects a friend request
         else if (nextSegment.isPresent() && nextSegment.get().equals("friend") && secondSegment.isPresent() && secondSegment.get().equals("reject")) {
             res = declineFriendRequest(exchange);
         }
@@ -217,13 +217,13 @@ public class UserController extends GenericHTTPHandler {
         boolean isJson;
         try {
             Map<String, String> body = extractJsonBody(exchange);
-            Optional<String> requesterOptional = requiresToken(body);
-            if (requesterOptional.isEmpty()) {
+            Optional<String> requestedOptional = requiresToken(body);
+            if (requestedOptional.isEmpty()) {
                 response = "Token not valid or not present";
                 httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
                 isJson = false;
             } else {
-                String requested = requesterOptional.get();
+                String requested = requestedOptional.get();
                 String requester = body.get("requester");
                 if (requester == null) {
                     response = "Missing attribute: requester";
@@ -235,7 +235,6 @@ public class UserController extends GenericHTTPHandler {
                     User requestedUser = userRepository.findByUsername(requested).get();
                     FriendRequest friendRequest = new FriendRequest(requesterUser, requestedUser, Calendar.getInstance());
                     if (FriendRequestService.getInstance().friendRequestExists(requesterUser, requestedUser)) {
-//                        requesterUser.addFriend(requestedUser); Solo modelo luego se borra
                         userRepository.addFriend(friendRequest);
                         FriendRequestService.getInstance().removeRequest(friendRequest);
                         response = "Friend request accepted";
@@ -267,21 +266,21 @@ public class UserController extends GenericHTTPHandler {
         boolean isJson;
         try {
             Map<String, String> body = extractJsonBody(exchange);
-            Optional<String> requesterOptional = requiresToken(body);
-            if (requesterOptional.isEmpty()) {
+            Optional<String> requestedOptional = requiresToken(body);
+            if (requestedOptional.isEmpty()) {
                 response = "Token not valid or not present";
                 httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
                 isJson = false;
             } else {
-                String requester = requesterOptional.get();
-                String requested = body.get("requested");
-                if (requested == null) {
-                    response = "Missing attribute: requested";
+                String requested = requestedOptional.get();
+                String requester = body.get("requester");
+                if (requester == null) {
+                    response = "Missing attribute: requester";
                     httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
                     isJson = false;
-                } else if (userRepository.findByUsername(requester).isPresent() && userRepository.findByUsername(requested).isPresent()) {
-                    User requesterUser = userRepository.findByUsername(requester).get();
-                    User requestedUser = userRepository.findByUsername(requested).get();
+                } else if (userRepository.findByUsername(requested).isPresent() && userRepository.findByUsername(requester).isPresent()) {
+                    User requesterUser = userRepository.findByUsername(requested).get();
+                    User requestedUser = userRepository.findByUsername(requester).get();
                     FriendRequest friendRequest = new FriendRequest(requesterUser, requestedUser, Calendar.getInstance());
                     userRepository.deleteFriendRequest(friendRequest);
                     response = "Friend request declined";

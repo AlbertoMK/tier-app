@@ -6,17 +6,13 @@ import server.Utils.LoggerService;
 import server.Utils.PropertiesLoader;
 
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 public class MySqlConnector implements UserRepository {
 
     private Connection connection;
     private static final String USERS_TABLE_NAME = "users";
-    private static final String FRIEND_REQUEST_TABLE_NAME  = "friend_request";
+    private static final String FRIEND_REQUEST_TABLE_NAME = "friend_request";
 
     public void connectDatabase() throws SQLException {
         LoggerService.log("Starting connection with mysql database...");
@@ -88,22 +84,12 @@ public class MySqlConnector implements UserRepository {
             PreparedStatement statement = connection.prepareStatement(String.format("INSERT INTO %s VALUES(?,?,?)", USERS_TABLE_NAME));
             statement.setString(1, user.getUsername());
             statement.setString(2, user.getPassword());
-            statement.setString(3, "" + user.getDateOfBirth().get(Calendar.YEAR) + (user.getDateOfBirth().get(Calendar.MONTH) + 1) + user.getDateOfBirth().get(Calendar.DAY_OF_MONTH));
+            Calendar dateOfBirth = user.getDateOfBirth();
+            statement.setString(3, String.format("%d/%d/%d",
+                    dateOfBirth.get(Calendar.YEAR), dateOfBirth.get(Calendar.MONTH) + 1, dateOfBirth.get(Calendar.DAY_OF_MONTH)));
             statement.executeUpdate();
         } catch (SQLException ex) {
             LoggerService.logerror("Error while inserting user into database");
-        }
-    }
-
-    @Override
-    public void updateUser(User user) {
-        try {
-            PreparedStatement statement = connection.prepareStatement(String.format("UPDATE %s \nSET password = ?, birth_date = ? \nWHERE username = ?", USERS_TABLE_NAME));
-            statement.setString(1, user.getPassword());
-            statement.setString(2, "" + user.getDateOfBirth().get(Calendar.YEAR) + (user.getDateOfBirth().get(Calendar.MONTH) + 1) + user.getDateOfBirth().get(Calendar.DAY_OF_MONTH));
-            statement.executeUpdate();
-        } catch (SQLException e) {
-            LoggerService.logerror("Error while updating user");
         }
     }
 
@@ -115,10 +101,12 @@ public class MySqlConnector implements UserRepository {
     @Override
     public void addFriendRequest(FriendRequest friendRequest) {
         try {
-            PreparedStatement statement = connection.prepareStatement(String.format("INSERT INTO %s VALUES(?,?,?)", FRIEND_REQUEST_TABLE_NAME ));
+            PreparedStatement statement = connection.prepareStatement(String.format("INSERT INTO %s VALUES(?,?,?)", FRIEND_REQUEST_TABLE_NAME));
             statement.setString(1, friendRequest.getRequester().getUsername());
             statement.setString(2, friendRequest.getRequested().getUsername());
-            statement.setString(3, "" + friendRequest.getDate().get(Calendar.YEAR) + (friendRequest.getDate().get(Calendar.MONTH) + 1) + friendRequest.getDate().get(Calendar.DAY_OF_MONTH));
+            Calendar date = friendRequest.getDate();
+            statement.setString(3, String.format("%d/%d/%d",
+                    date.get(Calendar.YEAR), date.get(Calendar.MONTH) + 1, date.get(Calendar.DAY_OF_MONTH)));
             statement.executeUpdate();
         } catch (SQLException e) {
             LoggerService.logerror("Error while adding friendship");
@@ -127,16 +115,50 @@ public class MySqlConnector implements UserRepository {
 
     @Override
     public void deleteFriendRequest(FriendRequest friendRequest) {
-
+        try {
+            PreparedStatement statement = connection.prepareStatement(String.format("DELETE FROM %s WHERE requester='%s' AND requested='%s'",
+                      FRIEND_REQUEST_TABLE_NAME, friendRequest.getRequester().getUsername(), friendRequest.getRequested().getUsername()));
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            LoggerService.logerror("Error while deleting friend request");
+        }
     }
 
     @Override
     public Set<FriendRequest> findFriendRequestsByRequester(User requester) {
-        return null;
+        Set<FriendRequest> friendRequestSet = new HashSet<>();
+        try {
+            Statement statement = connection.createStatement();
+            ResultSet rs = statement.executeQuery(String.format("SELECT * FROM %s WHERE requester='%s'", FRIEND_REQUEST_TABLE_NAME, requester.getUsername()));
+            while (rs.next()) {
+                FriendRequest friendRequest = new FriendRequest();
+                Optional<User> requestedUser = findByUsername(rs.getString("requested"));
+                friendRequest.setRequester(requester);
+                friendRequest.setRequested(requestedUser.get());
+                friendRequestSet.add(friendRequest);
+            }
+        } catch (Exception e) {
+            LoggerService.logerror("Error finding friend request");
+        }
+        return friendRequestSet;
     }
 
     @Override
     public Set<FriendRequest> findFriendRequestsByRequested(User requested) {
-        return null;
+        Set<FriendRequest> friendRequestSet = new HashSet<>();
+        try {
+            Statement statement = connection.createStatement();
+            ResultSet rs = statement.executeQuery(String.format("SELECT * FROM %s WHERE requested='%s'", FRIEND_REQUEST_TABLE_NAME, requested.getUsername()));
+            while (rs.next()) {
+                FriendRequest friendRequest = new FriendRequest();
+                Optional<User> requesterUser = findByUsername(rs.getString("requester"));
+                friendRequest.setRequester(requesterUser.get());
+                friendRequest.setRequested(requested);
+                friendRequestSet.add(friendRequest);
+            }
+        } catch (Exception e) {
+            LoggerService.logerror("Error finding friend request");
+        }
+        return friendRequestSet;
     }
 }

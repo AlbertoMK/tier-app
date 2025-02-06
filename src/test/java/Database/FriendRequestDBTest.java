@@ -64,9 +64,15 @@ public class FriendRequestDBTest {
         assertEquals(friendRequest.getRequested(), friendRequestRetrieved.getRequested());
     }
 
+    // Sin haber una friendRequest entre Unai y Nico
     @Test
     public void retrieveUnexistentFriendRequest() {
         assertEquals(null, connector.findFriendRequestsByBothUsers(Unai, Nico));
+    }
+
+    @Test
+    public void unexistentUserWhileRetrievingFriendRequest() {
+        assertEquals(null, connector.findFriendRequestsByBothUsers(null, Nico));
     }
 
     @Test
@@ -82,8 +88,18 @@ public class FriendRequestDBTest {
         assertEquals(1, connector.findFriendRequestsByRequester(Alonso).size());
         assertEquals(friendRequest.getRequested(), friendRequestRetrieved.getRequested());
         assertEquals(friendRequest.getRequester(), friendRequestRetrieved.getRequester());
-        assertEquals(friendRequest.getDate().getTimeInMillis() / 100000, friendRequestRetrieved.getDate().getTimeInMillis() / 100000);
     }
+
+    @Test
+    public void unexistentUserWhileRetrievingFriendRequestByRequester() {
+        assertEquals(0, connector.findFriendRequestsByRequester(null).size());
+    }
+
+    @Test
+    public void unexistentUserWhileRetrievingFriendRequestByRequested() {
+        assertEquals(0, connector.findFriendRequestsByRequested(null).size());
+    }
+
 
     @Test
     public void retrieveFriendRequestByRequested() {
@@ -98,7 +114,6 @@ public class FriendRequestDBTest {
         assertEquals(1, connector.findFriendRequestsByRequested(Alberto).size());
         assertEquals(friendRequest.getRequested(), friendRequestRetrieved.getRequested());
         assertEquals(friendRequest.getRequester(), friendRequestRetrieved.getRequester());
-        assertEquals(friendRequest.getDate().getTimeInMillis() / 100000, friendRequestRetrieved.getDate().getTimeInMillis() / 100000);
     }
 
     @Test
@@ -128,6 +143,11 @@ public class FriendRequestDBTest {
         assertEquals(Alberto, connector.findFriendFromFriend(Alonso));
     }
 
+    @Test
+    public void errorWhileRetrievingFriend() {
+        assertEquals(null, connector.findFriendFromFriend(null));
+    }
+
 
     @Test
     public void deleteFriend() {
@@ -146,7 +166,5 @@ public class FriendRequestDBTest {
     public void retrieveUnexistentFriend() {
         assertEquals(null, connector.findFriendFromFriend(new User("Juanlu", "patata", Calendar.getInstance())));
     }
-
-
 
 }

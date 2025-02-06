@@ -1,11 +1,15 @@
 package server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.net.httpserver.HttpExchange;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
 import server.Controllers.UserController;
 import server.Database.MySqlConnector;
+import server.Database.UserRepository;
 import server.Model.FriendRequest;
 import server.Model.User;
 import server.Utils.FriendRequestService;
@@ -24,14 +28,15 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class UserEndpointsTest extends ServerEndpointsTest {
+
+    private UserController userController;
+    private UserRepository userRepository;
+    private MySqlConnector mySqlConnector;
+    private FriendRequestService friendRequestService;
+    private HttpExchange exchange;
 
     static Calendar albertoBirthday = Calendar.getInstance();
     static Calendar alonsoBirthday = Calendar.getInstance();
@@ -50,6 +55,15 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     static User Nico = new User("Nico1", "password", nicoBirthday);
     static User Unai = new User("Unai1", "password", unaiBirthday);
 
+    @BeforeEach
+    public void setUp() {
+        userRepository = mock(UserRepository.class);
+        friendRequestService = mock(FriendRequestService.class);
+        mySqlConnector = mock(MySqlConnector.class);
+        userController = new UserController(userRepository);
+        exchange = mock(HttpExchange.class);
+    }
+
     @BeforeAll
     public static void initialize() throws IOException {
         startServer();
@@ -62,8 +76,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void userFindByUsernameEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
-
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
         App.attachDatabaseManager(mySqlConnector);
 
@@ -77,8 +89,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void userFindByUsernameNotFoundEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
-
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.empty());
         App.attachDatabaseManager(mySqlConnector);
 
@@ -93,8 +103,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void userFindAllEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
-
         when(mySqlConnector.findAllUsers()).thenReturn(List.of(Alberto, Alonso, Nico, Unai));
         App.attachDatabaseManager(mySqlConnector);
 
@@ -108,8 +116,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void userFindAllEmptyEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
-
         when(mySqlConnector.findAllUsers()).thenReturn(new ArrayList<>());
         App.attachDatabaseManager(mySqlConnector);
 
@@ -123,8 +129,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void createValidUserEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
-
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.empty());
         App.attachDatabaseManager(mySqlConnector);
 
@@ -142,8 +146,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void createRepeatedUsernameUserEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
-
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
         App.attachDatabaseManager(mySqlConnector);
 
@@ -161,8 +163,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void createShortUsernameUserEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
-
         when(mySqlConnector.findByUsername(anyString())).thenReturn(Optional.empty());
         App.attachDatabaseManager(mySqlConnector);
 
@@ -181,8 +181,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void createTooLongUsernameUserEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
-
         when(mySqlConnector.findByUsername(anyString())).thenReturn(Optional.empty());
         App.attachDatabaseManager(mySqlConnector);
 
@@ -201,8 +199,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void createShortPasswordUserEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
-
         when(mySqlConnector.findByUsername(anyString())).thenReturn(Optional.empty());
         App.attachDatabaseManager(mySqlConnector);
 
@@ -221,8 +217,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void validLoginEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
-
         User user1 = new User("alberto", UserController.hashPassword("password"), Calendar.getInstance());
         when(mySqlConnector.findByUsername("alberto")).thenReturn(Optional.of(user1));
         App.attachDatabaseManager(mySqlConnector);
@@ -239,8 +233,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void wrongPasswordLoginEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
-
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
         App.attachDatabaseManager(mySqlConnector);
 
@@ -256,8 +248,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void userNotFoundLoginEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
-
         when(mySqlConnector.findByUsername("alberto")).thenReturn(Optional.empty());
         App.attachDatabaseManager(mySqlConnector);
 
@@ -273,7 +263,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void invalidRequestLoginEndpointTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
         try {
@@ -288,7 +277,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void addFriendRequest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
@@ -309,8 +297,31 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     }
 
     @Test
+    public void testAcceptFriendRequest() {
+        App.attachDatabaseManager(mySqlConnector);
+
+        when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
+        when(mySqlConnector.findByUsername(Unai.getUsername())).thenReturn(Optional.of(Unai));
+        FriendRequest friendRequest = new FriendRequest(Unai, Alberto, Calendar.getInstance());
+        when(mySqlConnector.findFriendRequestsByRequester(Unai)).thenReturn(Set.of(friendRequest));
+
+        FriendRequestService.init(mySqlConnector);
+        try {
+            String token = UserTokenService.generateToken(Alberto.getUsername());
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requester", Unai.getUsername()));
+            HttpResponse<String> response = makeHttpRequest("user/friend/accept", HttpMethod.POST, requestBody);
+
+            assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
+            assertTrue(response.body().contains("Friend request accepted"));
+            verify(mySqlConnector).deleteFriendRequest(any());
+        } catch (IOException | InterruptedException ex) {
+            fail("Unexpected exception happen: " + ex.getMessage());
+        }
+    }
+
+
+    @Test
     public void addRepeatedFriendRequest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
@@ -333,7 +344,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void missingTokenFriendRequestTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
@@ -352,7 +362,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void missingRequestedFriendRequestTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
@@ -372,7 +381,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void requesterNotFoundFriendRequestTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
         
         when(mySqlConnector.findByUsername(Unai.getUsername())).thenReturn(Optional.of(Unai));
@@ -391,7 +399,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void requestedNotFoundFriendRequestTest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
@@ -410,7 +417,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void removeFriendRequest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
@@ -433,7 +439,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void removeUnexistentFriendRequest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
@@ -455,7 +460,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void missingTokenRemoveFriendRequest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
@@ -477,7 +481,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void missingRequestedRemoveFriendRequest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
@@ -498,7 +501,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void requesterNotFoundRemoveFriendRequest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.empty());
@@ -519,7 +521,6 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
     @Test
     public void requestedNotFoundRemoveFriendRequest() {
-        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
         when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
@@ -536,5 +537,10 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         } catch (IOException | InterruptedException ex) {
             fail("Unexpected exception happen: " + ex.getMessage());
         }
+    }
+
+    @Test
+    public void testDeclineFriendRequest() throws IOException {
+
     }
 }

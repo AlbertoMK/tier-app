@@ -5,6 +5,7 @@ import com.sun.net.httpserver.HttpServer;
 import server.Controllers.UserController;
 import server.Database.MySqlConnector;
 import server.Database.UserRepository;
+import server.Utils.FriendRequestService;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -20,6 +21,7 @@ public class App {
     public static void main( String[] args ) throws IOException, SQLException {
         startServer();
         MySqlConnector userConnector = new MySqlConnector();
+        FriendRequestService.init(userConnector);
         userConnector.connectDatabase();
         attachDatabaseManager(userConnector);
     }
@@ -33,10 +35,10 @@ public class App {
         return server;
     }
 
-    protected static void attachDatabaseManager(MySqlConnector connector) {
+    protected static void attachDatabaseManager(UserRepository userConnector) {
         if(contextInUse != null) {
             server.removeContext(contextInUse);
         }
-        contextInUse = server.createContext("/user", new UserController(connector));
+        contextInUse = server.createContext("/user", new UserController(userConnector));
     }
 }

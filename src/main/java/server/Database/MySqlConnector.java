@@ -19,6 +19,7 @@ import java.util.Calendar;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
 
@@ -199,7 +200,11 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
 
     @Override
     public Optional<Exercise> findExerciseByName(String exerciseName) {
-        return Optional.of(findExerciseWithFilters(Map.of("exercise_name", exerciseName)).iterator().next());
+        try {
+            return Optional.of(findExerciseWithFilters(Map.of("exercise_name", exerciseName)).iterator().next());
+        } catch (NoSuchElementException ex) {
+            return Optional.empty();
+        }
     }
 
     @Override

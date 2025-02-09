@@ -388,7 +388,24 @@ public class UserEndpointsTest extends ServerEndpointsTest {
             fail("Unexpected exception happen: " + ex.getMessage());
         }
     }
+    @Test
+    public void requestedEqualToRequesterTest() {
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(mySqlConnector);
 
+        when(mySqlConnector.findByUsername(Nico.getUsername())).thenReturn(Optional.of(Nico));
+
+        try {
+            String token = UserTokenService.generateToken(Nico.getUsername());
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Nico.getUsername()));
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
+            assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
+            assertTrue(response.body().contains("Can't add yourself"));
+            verify(mySqlConnector, never()).addFriendRequest(any());
+        } catch (IOException | InterruptedException ex) {
+            fail("Unexpected exception happen: " + ex.getMessage());
+        }
+    }
     @Test
     public void requestedNotFoundFriendRequestTest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);

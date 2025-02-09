@@ -176,7 +176,11 @@ public class UserController extends GenericHTTPHandler {
                 else if (userRepository.findByUsername(requester).isPresent() && userRepository.findByUsername(requested).isPresent()) {
                     User requesterUser = userRepository.findByUsername(requester).get();
                     User requestedUser = userRepository.findByUsername(requested).get();
-                    if (FriendRequestService.getInstance().addRequest(new FriendRequest(requesterUser, requestedUser, Calendar.getInstance()))) {
+                    if(requested.equals(requester)){
+                        response = "Can't add yourself";
+                        httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                        isJson = false;
+                    }else if (FriendRequestService.getInstance().addRequest(new FriendRequest(requesterUser, requestedUser, Calendar.getInstance()))) {
                         response = "Friend request sent";
                         httpStatus = HttpURLConnection.HTTP_OK;
                         isJson = false;

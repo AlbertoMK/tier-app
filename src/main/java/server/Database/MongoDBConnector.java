@@ -2,7 +2,6 @@ package server.Database;
 
 import com.mongodb.client.*;
 import org.bson.Document;
-import server.Model.Exercise;
 import server.Model.ExerciseSet;
 import server.Model.Routine;
 import server.Model.User;
@@ -17,7 +16,7 @@ import java.util.stream.Collectors;
 
 public class MongoDBConnector implements RoutineRepository{
 
-    public MongoDatabase database; //Poner en privado cuando se pruebe
+    private MongoDatabase database;
     private MongoClient client;
     private static final String ROUTINE_COLLECTION = "routines";
 
@@ -41,46 +40,68 @@ public class MongoDBConnector implements RoutineRepository{
         }
     }
 
-
-
- // Estos dos métodos los voy a quitar en cuanto meta un test más
-    public MongoClient getClient() {
-        return client;
-    }
-    public MongoDatabase getDatabase() {
-        return database;
-    }
- // --------------------------------------------------------------
-
-
-
-
-    public void addRoutine(Routine routine) {
+    public boolean addRoutine(Routine routine) {
         MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
-        Document newRoutine = new Document("_id", routine.getId())
-                  .append("name", routine.getRoutineName())
-                  .append("exercises", routine.getExerciseSets().stream().map(exercise -> exercise.getExercise().getExerciseName()).collect(Collectors.toList()));
-        collection.insertOne(newRoutine);
+        Boolean result = false;
+        try {
+            // Allows to create a routine without exercises
+            List<String> exercises = (routine.getExerciseSets() == null || routine.getExerciseSets().isEmpty()) ?
+                    new ArrayList<>() :
+                    routine.getExerciseSets().stream()
+                            .map(exercise -> exercise.getExercise().getExerciseName())
+                            .collect(Collectors.toList());
+            Document newRoutine = new Document("_id", routine.getId())
+                    .append("name", routine.getRoutineName())
+                    .append("exercises", exercises);
+            collection.insertOne(newRoutine);
+            result = true;
+        } catch (Exception e) {
+            LoggerService.logerror("Error inserting new routine");
+            result = false;
+        }
+        return result;
     }
 
     public Optional<Routine> findById(int id) {
         MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
         Document document = collection.find(new Document("_id", id)).first();
-        Routine routine = new Routine();
-        routine.setId((int)document.get("_id"));
-        routine.setRoutineName((String) document.get("name"));
-        routine.setExerciseSets((List)document.get("exercises"));
-        return Optional.of(routine);
+        if (document != null) {
+            Routine routine = new Routine();
+            routine.setId((int) document.get("_id"));
+            routine.setRoutineName((String) document.get("name"));
+            routine.setExerciseSets((List) document.get("exercises"));
+            return Optional.of(routine);
+        }
+        return Optional.empty();
     }
 
     @Override
-    public void updateRoutine(Routine routine) {
-
+    public boolean updateRoutine(Routine routine) {
+        MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
+        boolean result;
+        if (findById(routine.getId()).isPresent()) {
+            collection.updateOne(new Document("_id", routine.getId()), new Document("$set", new Document("name", routine.getRoutineName())));
+            result = true;
+        } else {
+            LoggerService.logerror("Error updating routine");
+            result = false;
+        }
+        return result;
     }
 
     @Override
-    public void deleteRoutine(Routine routine) {
+    public boolean deleteRoutine(Routine routine) {
+        MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
+        boolean result;
+        if (findById(routine.getId()).isPresent()) {
+            collection.deleteOne(new Document("_id", routine.getId()));
+            result = true;
+        } else {
+            LoggerService.logerror("Error deleting routine");
+            result = false;
+        }
 
+        return result;
     }
 
     @Override
@@ -94,32 +115,54 @@ public class MongoDBConnector implements RoutineRepository{
     }
 
     @Override
-    public Optional<Routine> findByFilters(Map<String, String> filter) {
+    public Optional<Routine> findRoutinesWithFilters(Map<String, String> filter) {
         return Optional.empty();
     }
 
     @Override
-    public void addExerciseToRoutine(Routine routine, Exercise exercise) {
-
+    public boolean addExerciseToRoutine(Routine routine, ExerciseSet exercise) {
+        MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
+        boolean result;
+        if (findById(routine.getId()).isPresent()) {
+            if (exercise.getExercise().getExerciseName() != null) {
+                Document exerciseDocument = new Document("exercise", exercise.getExercise().getExerciseName())
+                        .append("sets", exercise.getSets().stream().map(set -> {
+                            return new Document("reps", set.getReps())
+                                    .append("weight", set.getWeight())
+                                    .append("duration", set.getDuration())
+                                    .append("distance", set.getDistance())
+                                    .append("setType", set.getSetType().toString());
+                        }).collect(Collectors.toList()));
+                collection.updateOne(new Document("_id", routine.getId()), new Document("$push", new Document("exercises", exerciseDocument)));
+                result = true;
+            } else {
+                LoggerService.logerror("Error adding exercise to routine because exercise is null");
+                result = false;
+            }
+        } else {
+            LoggerService.logerror("Error adding exercise to routine because routine does not exists");
+            result = false;
+        }
+        return result;
     }
 
     @Override
-    public void removeExerciseFromRoutine(Routine routine, Exercise exercise) {
-
-    }
-
-    @Override
-    public void duplicatePersonalizedRoutineToAssignToOtherUser(Routine routine, User otherUser) {
-
-    }
-
-    @Override
-    public int countRoutinesByUser(User user) {
-        return 0;
-    }
-
-    @Override
-    public List<Routine> getPopularRoutines() {
-        return List.of();
+    public boolean removeExerciseFromRoutine(Routine routine, ExerciseSet exercise) {
+        MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
+        boolean result;
+        if (findById(routine.getId()).isPresent()) {
+            if (routine.getExerciseSets().contains(exercise)) {
+                Document exerciseDocument = new Document("exercise", exercise.getExercise().getExerciseName());
+                collection.updateOne(new Document("_id", routine.getId()), new Document("$pull", new Document("exercises", exerciseDocument)));
+                result = true;
+            } else {
+                LoggerService.logerror("Error removing exercise from routine because routine does not contain the exercise selected");
+                result = false;
+            }
+        } else {
+            LoggerService.logerror("Error removing exercise from routine because routine does not exists");
+            result = false;
+        }
+        return result;
     }
 }

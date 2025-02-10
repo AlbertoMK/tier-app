@@ -10,9 +10,10 @@ import server.Model.User;
 
 import java.sql.SQLException;
 import java.util.Calendar;
+import java.util.HashSet;
+import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
+import static org.junit.jupiter.api.Assertions.*;
 public class FriendRequestDBTest {
 
 
@@ -48,77 +49,76 @@ public class FriendRequestDBTest {
 
     @BeforeEach
     public void truncateTables() {
-        connector.truncateUserTables();
+        connector.truncateTables();
     }
 
 
     // FriendRequests
 
     @Test
-    public void createAndRetrieveFriendRequestByBothUsers() {
-//        Alonso -> Alberto
-        FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
-        connector.addFriendRequest(friendRequest);
-        FriendRequest friendRequestRetrieved = connector.findFriendRequestsByBothUsers(Alonso, Alberto);
-        assertEquals(friendRequest.getRequester(), friendRequestRetrieved.getRequester());
-        assertEquals(friendRequest.getRequested(), friendRequestRetrieved.getRequested());
-    }
-
-    // Sin haber una friendRequest entre Unai y Nico
-    @Test
-    public void retrieveUnexistentFriendRequest() {
-        assertEquals(null, connector.findFriendRequestsByBothUsers(Unai, Nico));
+    public void createAndRetrieveFriendRequestThrowsError() {
+        assertThrows(Exception.class, () -> connector.addFriendRequest(new FriendRequest(null, null, null)));
     }
 
     @Test
-    public void unexistentUserWhileRetrievingFriendRequest() {
-        assertEquals(null, connector.findFriendRequestsByBothUsers(null, Nico));
+    public void createThenDeleteFriendRequestThrowsError() {
+        assertThrows(Exception.class,() -> connector.deleteFriendRequest(new FriendRequest(null, null, null)));
     }
 
+    // Find FR by requesters
+
+    // By requester
     @Test
     public void retrieveFriendRequestByRequester() {
-        //       Alonso -> Alberto
-        FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
         connector.addUser(Alonso);
         connector.addUser(Alberto);
+        FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
         connector.addFriendRequest(friendRequest);
+        int size = connector.findFriendRequestsByRequester(Alonso).size();
+        assertEquals(1, size);
+        FriendRequest friendRequestRetrieved = connector.findFriendRequestsByRequester(Alonso).iterator().next();
+        assertEquals(friendRequest.getRequested().getUsername(), friendRequestRetrieved.getRequested().getUsername());
+        assertEquals(friendRequest.getRequester().getUsername(), friendRequestRetrieved.getRequester().getUsername());
+        assertEquals(friendRequest.getDate().getTimeInMillis() / 10000, friendRequestRetrieved.getDate().getTimeInMillis() / 10000);
+    }
 
-        FriendRequest friendRequestRetrieved = connector.findFriendRequestsByRequester(Alonso).iterator().next(); // Falla la fecha :mirar:
-
+    @Test
+    public void createThenDeleteFriendRequestByRequesterAndCheckList() {
+        connector.addUser(Alonso);
+        connector.addUser(Alberto);
+        FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
+        connector.addFriendRequest(friendRequest);
+        int size = connector.findFriendRequestsByRequester(Alonso).size();
+        assertEquals(1, size);
+        FriendRequest friendRequestRetrieved = connector.findFriendRequestsByRequester(Alonso).iterator().next();
+        assertEquals(friendRequest.getRequested().getUsername(), friendRequestRetrieved.getRequested().getUsername());
+        assertEquals(friendRequest.getRequester().getUsername(), friendRequestRetrieved.getRequester().getUsername());
         assertEquals(1, connector.findFriendRequestsByRequester(Alonso).size());
-        assertEquals(friendRequest.getRequested(), friendRequestRetrieved.getRequested());
-        assertEquals(friendRequest.getRequester(), friendRequestRetrieved.getRequester());
+        connector.deleteFriendRequest(friendRequest);
+        assertEquals(0, connector.findFriendRequestsByRequester(Alonso).size());
     }
 
     @Test
-    public void unexistentUserWhileRetrievingFriendRequestByRequester() {
-        assertEquals(0, connector.findFriendRequestsByRequester(null).size());
+    public void nonexistentUserWhileRetrievingFriendRequestByRequester() {
+        assertTrue(connector.findFriendRequestsByRequester(Alonso).isEmpty());
     }
 
+    // By requested
     @Test
-    public void unexistentUserWhileRetrievingFriendRequestByRequested() {
-        assertEquals(0, connector.findFriendRequestsByRequested(null).size());
-    }
-
-
-    @Test
-    public void retrieveFriendRequestByRequested() {
-        //       Alberto -> Alonso
+    public void createFriendRequestsByRequestedAndCheckList() {
         FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
         connector.addUser(Alonso);
         connector.addUser(Alberto);
         connector.addFriendRequest(friendRequest);
-
-        FriendRequest friendRequestRetrieved = connector.findFriendRequestsByRequested(Alberto).iterator().next(); // Falla la fecha :mirar:
-
-        assertEquals(1, connector.findFriendRequestsByRequested(Alberto).size());
-        assertEquals(friendRequest.getRequested(), friendRequestRetrieved.getRequested());
-        assertEquals(friendRequest.getRequester(), friendRequestRetrieved.getRequester());
+        int size = connector.findFriendRequestsByRequested(Alberto).size();
+        assertEquals(1, size);
+        FriendRequest friendRequestRetrieved = connector.findFriendRequestsByRequested(Alberto).iterator().next();
+        assertEquals(friendRequest.getRequested().getUsername(), friendRequestRetrieved.getRequested().getUsername());
+        assertEquals(friendRequest.getRequester().getUsername(), friendRequestRetrieved.getRequester().getUsername());
     }
 
     @Test
-    public void deleteFriendRequest() {
-        //       Alberto -> Alonso
+    public void createThenDeleteFriendRequestByRequestedAndCheckList() {
         FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
         connector.addUser(Alonso);
         connector.addUser(Alberto);
@@ -128,43 +128,103 @@ public class FriendRequestDBTest {
         assertEquals(0, connector.findFriendRequestsByRequested(Alberto).size());
     }
 
+    @Test
+    public void nonexistentUserWhileRetrievingFriendRequestByRequested() {
+        assertTrue(connector.findFriendRequestsByRequested(Alonso).isEmpty());
+    }
 
-    // Friend
+    // Both users
+    @Test
+    public void createFriendRequestByBothUsersAndCheck() {
+        FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
+        connector.addFriendRequest(friendRequest);
+        FriendRequest friendRequestRetrieved = connector.findFriendRequestsByBothUsers(Alonso, Alberto).get();
+        assertEquals(friendRequest.getRequester().getUsername(), friendRequestRetrieved.getRequester().getUsername());
+        assertEquals(friendRequest.getRequested().getUsername(), friendRequestRetrieved.getRequested().getUsername());
+    }
 
     @Test
-    public void retrieveFriend() {
-        // Alonso -> Alberto
+    public void createThenDeleteFriendRequestByBothUsersAndCheck() {
+        FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
+        connector.addFriendRequest(friendRequest);
+        assertFalse(connector.findFriendRequestsByBothUsers(Alonso, Alberto).isEmpty());
+        connector.deleteFriendRequest(friendRequest);
+        assertTrue(connector.findFriendRequestsByBothUsers(Alonso, Alberto).isEmpty());
+    }
+
+    @Test
+    public void nonexistentFriendRequestWhileRetrievingFriendRequestsByBothUsers() {
+        assertTrue(connector.findFriendRequestsByBothUsers(Alonso, Alberto).isEmpty());
+    }
+
+    // Friends
+    @Test
+    public void addFriend() {
         connector.addUser(Alonso);
         connector.addUser(Alberto);
         FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
         connector.addFriendRequest(friendRequest);
         connector.addFriend(friendRequest);
-
-        assertEquals(Alberto, connector.findFriendFromFriend(Alonso));
+        Set<User> friendsAlonso = connector.findFriendsFromUser(Alonso);
+        assertEquals(1, friendsAlonso.stream().filter(user -> user.getUsername().equals(Alberto.getUsername())).count());
+        Set<User> friendsAlberto = connector.findFriendsFromUser(Alberto);
+        assertEquals(1, friendsAlberto.stream().filter(user -> user.getUsername().equals(Alonso.getUsername())).count());
     }
 
     @Test
-    public void errorWhileRetrievingFriend() {
-        assertEquals(null, connector.findFriendFromFriend(null));
+    public void addFriendThrowsError() {
+        assertThrows(Exception.class, () -> connector.addFriend(new FriendRequest(null, null, null)));
     }
-
 
     @Test
     public void deleteFriend() {
-        // Alonso -> Alberto
         connector.addUser(Alonso);
         connector.addUser(Alberto);
         FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
         connector.addFriendRequest(friendRequest);
         connector.addFriend(friendRequest);
-        assertEquals(Alberto, connector.findFriendFromFriend(Alonso));
+        Set<User> friendsRestrievedBeforeDelete = connector.findFriendsFromUser(Alonso);
+        assertTrue(friendsRestrievedBeforeDelete.stream().anyMatch(user -> user.getUsername().equals(Alberto.getUsername())));
         connector.deleteFriend(friendRequest);
-        assertEquals(null, connector.findFriendFromFriend(Alonso));
+        Set<User> friendsRestrievedAfterDelete = connector.findFriendsFromUser(Alonso);
+        assertTrue(friendsRestrievedAfterDelete.stream().noneMatch(user -> user.getUsername().equals(Alberto.getUsername())));
     }
 
     @Test
-    public void retrieveUnexistentFriend() {
-        assertEquals(null, connector.findFriendFromFriend(new User("Juanlu", "patata", Calendar.getInstance())));
+    public void deleteFriendThrowsError() {
+        assertThrows(Exception.class, () -> connector.deleteFriend(new FriendRequest(null, null, null)));
     }
 
+    @Test
+    public void retrieveAFriendFromExistingUser() {
+        connector.addUser(Alonso);
+        connector.addUser(Alberto);
+        FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
+        connector.addFriendRequest(friendRequest);
+        connector.addFriend(friendRequest);
+        assertEquals(1, connector.findFriendsFromUser(Alonso).stream().filter(user -> user.getUsername().equals(Alberto.getUsername())).count());
+    }
+
+    @Test
+    public void retrieveNonexistentFriend() {
+        assertTrue(connector.findFriendsFromUser(Alonso).isEmpty());
+    }
+
+    @Test
+    public void retrieveFriendsGroupFromExistingUser() {
+        connector.addUser(Alonso);
+        connector.addUser(Alberto);
+        connector.addUser(Nico);
+        FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
+        FriendRequest friendRequest2 = new FriendRequest(Alonso, Nico, Calendar.getInstance());
+        HashSet<User> friends = new HashSet<>(Set.of(Alberto, Nico));
+        connector.addFriendRequest(friendRequest);
+        connector.addFriend(friendRequest);
+        connector.addFriendRequest(friendRequest2);
+        connector.addFriend(friendRequest2);
+        Set<User> friendsRestrieved = connector.findFriendsFromUser(Alonso);
+        for (User friend : friends) {
+            assertTrue(friendsRestrieved.stream().anyMatch(user -> user.getUsername().equals(friend.getUsername())));
+        }
+    }
 }

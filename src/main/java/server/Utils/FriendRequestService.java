@@ -49,17 +49,6 @@ public class FriendRequestService {
             return false;
     }
 
-    public boolean acceptRequest(FriendRequest friendRequest) {
-        String requested = friendRequest.getRequested().getUsername();
-        String requester = friendRequest.getRequester().getUsername();
-
-        if (getRequestsAsRequester(requester).contains(requested)) {
-
-            return true;
-        } else
-            return false;
-    }
-
     // return a Set containing the requested users' usernames
     public Set<String> getRequestsAsRequester(String requester) {
         User userRequester = userRepository.findByUsername(requester).get();
@@ -77,7 +66,7 @@ public class FriendRequestService {
     }
 
     // verifies if there is a friend request with the requester & requested given
-    public boolean friendRequestExists(User requested, User requester) {
-        return !getRequestsAsRequested(requested.getUsername()).isEmpty() && !getRequestsAsRequester(requester.getUsername()).isEmpty();
+    public boolean friendRequestExists(User requester, User requested ) {
+        return getRequestsAsRequester(requester.getUsername()).contains(requested.getUsername());
     }
 }

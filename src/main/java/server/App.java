@@ -4,9 +4,11 @@ import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpServer;
 import server.Controllers.UserController;
 import server.Database.MySqlConnector;
+import server.Database.UserRepository;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.sql.SQLException;
 
 import static server.Utils.LoggerService.log;
 
@@ -15,9 +17,11 @@ public class App {
     private static HttpServer server;
     private static HttpContext contextInUse;
 
-    public static void main( String[] args ) throws IOException {
+    public static void main( String[] args ) throws IOException, SQLException {
         startServer();
-        attachDatabaseManager(new MySqlConnector());
+        MySqlConnector userConnector = new MySqlConnector();
+        userConnector.connectDatabase();
+        attachDatabaseManager(userConnector);
     }
 
     // Use to make unit test mocking connector

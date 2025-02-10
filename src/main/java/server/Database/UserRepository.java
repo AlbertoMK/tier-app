@@ -18,6 +18,6 @@ public interface UserRepository {
     public void deleteFriend(FriendRequest friendRequest);
     public Set<FriendRequest> findFriendRequestsByRequester(User requester);
     public Set<FriendRequest> findFriendRequestsByRequested(User requested);
-    public FriendRequest findFriendRequestsByBothUsers(User requester, User requested);
-    public User findFriendFromFriend(User friend);
+    public Optional<FriendRequest> findFriendRequestsByBothUsers(User requester, User requested);
+    public Set<User> findFriendsFromUser(User friend);
 }

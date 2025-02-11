@@ -3,6 +3,7 @@ package server;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import server.Controllers.UserController;
 import server.Database.MySqlConnector;
@@ -49,6 +50,14 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     static User Alonso = new User("Alonso", "password", alonsoBirthday);
     static User Nico = new User("Nico1", "password", nicoBirthday);
     static User Unai = new User("Unai1", "password", unaiBirthday);
+
+    @BeforeEach
+    public void reset() {
+        Alberto = new User("Alberto", "password", albertoBirthday);
+        Alonso = new User("Alonso", "password", alonsoBirthday);
+        Nico = new User("Nico1", "password", nicoBirthday);
+        Unai = new User("Unai1", "password", unaiBirthday);
+    }
 
     @BeforeAll
     public static void initialize() throws IOException {

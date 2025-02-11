@@ -231,7 +231,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
             String requestBody = new ObjectMapper().writeValueAsString(Map.of("username", "alberto", "password", "password"));
             HttpResponse<String> response = makeHttpRequest("user/login", HttpMethod.POST, requestBody);
             assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
-            assertTrue(response.body().contains("session-token"));
+            assertTrue(response.body().contains("session_token"));
         } catch (IOException | InterruptedException ex) {
             fail("Unexpected exception happen: " + ex.getMessage());
         }
@@ -298,7 +298,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         FriendRequestService.init(mySqlConnector);
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
-            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Unai.getUsername()));
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Unai.getUsername()));
             HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
             assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
             assertTrue(response.body().contains("Friend request sent"));
@@ -320,7 +320,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         FriendRequestService.init(mySqlConnector);
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
-            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Unai.getUsername()));
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Unai.getUsername()));
             makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
             HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
             assertEquals(HttpURLConnection.HTTP_CONFLICT, response.statusCode());
@@ -360,7 +360,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
-            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token));
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token));
             HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
             assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
             assertTrue(response.body().contains("Missing attribute: requested"));
@@ -379,7 +379,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
-            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Unai.getUsername()));
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Unai.getUsername()));
             HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
             assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
             assertTrue(response.body().contains("Usernames not found"));
@@ -398,7 +398,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
-            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Unai.getUsername()));
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Unai.getUsername()));
             HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
             assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
             assertTrue(response.body().contains("Usernames not found"));
@@ -421,7 +421,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         FriendRequestService.init(mySqlConnector);
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
-            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Unai.getUsername()));
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Unai.getUsername()));
             HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
             assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
             assertTrue(response.body().contains("Friend request removed"));
@@ -443,7 +443,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         FriendRequestService.init(mySqlConnector);
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
-            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Unai.getUsername()));
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Unai.getUsername()));
             HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
             assertEquals(HttpURLConnection.HTTP_CONFLICT, response.statusCode());
             assertTrue(response.body().contains("This user hasn't an existing friend request"));
@@ -486,7 +486,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         FriendRequestService.init(mySqlConnector);
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
-            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token));
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token));
             HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
             assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
             assertTrue(response.body().contains("Missing attribute: requested"));
@@ -507,7 +507,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         FriendRequestService.init(mySqlConnector);
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
-            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Unai.getUsername()));
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Unai.getUsername()));
             HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
             assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
             assertTrue(response.body().contains("Usernames not found"));
@@ -528,7 +528,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         FriendRequestService.init(mySqlConnector);
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
-            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Unai.getUsername()));
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Unai.getUsername()));
             HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
             assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
             assertTrue(response.body().contains("Usernames not found"));

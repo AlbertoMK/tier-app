@@ -13,9 +13,7 @@ public interface RoutineRepository {
     public Optional<Routine> findById(int id);
     public boolean updateRoutine(Routine routine);
     public boolean deleteRoutine(Routine routine);
-    public void findAllRoutines();
-    public List<Routine> findRoutinesByUser(User user);
+    public int findAllRoutines();
+    public List<Routine> findRoutinesCreatedByUser(User user);
     public Optional<Routine> findRoutinesWithFilters(Map<String, String> filter);
-    public boolean addExerciseToRoutine(Routine routine, ExerciseSet exercise);
-    public boolean removeExerciseFromRoutine(Routine routine, ExerciseSet exercise);
 }

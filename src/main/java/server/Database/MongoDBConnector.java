@@ -40,9 +40,18 @@ public class MongoDBConnector implements RoutineRepository{
         }
     }
 
+    public void removeAllRoutines() {
+        if (database != null) {
+            MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
+            collection.drop();
+        } else {
+            LoggerService.logerror("Error dropping all routines - Connection not established");
+        }
+    }
+
     public boolean addRoutine(Routine routine) {
         MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
-        Boolean result = false;
+        Boolean result;
         try {
             // Allows to create a routine without exercises
             List<String> exercises = (routine.getExerciseSets() == null || routine.getExerciseSets().isEmpty()) ?
@@ -105,12 +114,26 @@ public class MongoDBConnector implements RoutineRepository{
     }
 
     @Override
-    public void findAllRoutines() {
+    public int findAllRoutines() {
+        int count = 0;
+        List<Routine> routines = new ArrayList<>();
+        MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
 
+        for (Document document : collection.find()) {
+            Routine actualRoutine = new Routine();
+            actualRoutine.setId((int) document.get("_id"));
+            actualRoutine.setRoutineName((String) document.get("name"));
+            actualRoutine.setExerciseSets((List) document.get("exercises"));
+            routines.add(actualRoutine);
+            count++;
+
+            LoggerService.log(actualRoutine.getId() + " - " + actualRoutine.getRoutineName());
+        }
+        return count;
     }
 
     @Override
-    public List<Routine> findRoutinesByUser(User user) {
+    public List<Routine> findRoutinesCreatedByUser(User user) {
         return List.of();
     }
 
@@ -119,50 +142,4 @@ public class MongoDBConnector implements RoutineRepository{
         return Optional.empty();
     }
 
-    @Override
-    public boolean addExerciseToRoutine(Routine routine, ExerciseSet exercise) {
-        MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
-        boolean result;
-        if (findById(routine.getId()).isPresent()) {
-            if (exercise.getExercise().getExerciseName() != null) {
-                Document exerciseDocument = new Document("exercise", exercise.getExercise().getExerciseName())
-                        .append("sets", exercise.getSets().stream().map(set -> {
-                            return new Document("reps", set.getReps())
-                                    .append("weight", set.getWeight())
-                                    .append("duration", set.getDuration())
-                                    .append("distance", set.getDistance())
-                                    .append("setType", set.getSetType().toString());
-                        }).collect(Collectors.toList()));
-                collection.updateOne(new Document("_id", routine.getId()), new Document("$push", new Document("exercises", exerciseDocument)));
-                result = true;
-            } else {
-                LoggerService.logerror("Error adding exercise to routine because exercise is null");
-                result = false;
-            }
-        } else {
-            LoggerService.logerror("Error adding exercise to routine because routine does not exists");
-            result = false;
-        }
-        return result;
-    }
-
-    @Override
-    public boolean removeExerciseFromRoutine(Routine routine, ExerciseSet exercise) {
-        MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
-        boolean result;
-        if (findById(routine.getId()).isPresent()) {
-            if (routine.getExerciseSets().contains(exercise)) {
-                Document exerciseDocument = new Document("exercise", exercise.getExercise().getExerciseName());
-                collection.updateOne(new Document("_id", routine.getId()), new Document("$pull", new Document("exercises", exerciseDocument)));
-                result = true;
-            } else {
-                LoggerService.logerror("Error removing exercise from routine because routine does not contain the exercise selected");
-                result = false;
-            }
-        } else {
-            LoggerService.logerror("Error removing exercise from routine because routine does not exists");
-            result = false;
-        }
-        return result;
-    }
 }

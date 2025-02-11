@@ -1,12 +1,10 @@
 package Database;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import server.Database.MongoDBConnector;
 import server.Model.*;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -16,18 +14,31 @@ public class RoutinesDBTests {
 
     private static MongoDBConnector connector;
 
-    @BeforeAll
-    public static void setUp() {
+    @BeforeEach
+    public void setUp() {
         connector = new MongoDBConnector();
         connector.connectDatabase();
+        connector.removeAllRoutines();
+
+        Routine routine = new Routine();
+        routine.setId(1);
+        routine.setRoutineName("Upper Training");
+        connector.addRoutine(routine);
+
+        Routine routine1 = new Routine();
+        routine1.setId(100);
+        routine1.setRoutineName("Cardio training");
+        connector.addRoutine(routine1);
+
+        Routine routine2 = new Routine();
+        routine2.setId(101);
+        routine2.setRoutineName("Gym training");
+        connector.addRoutine(routine2);
+
     }
 
     @AfterAll
     public static void tearDown() {
-        Routine routine = new Routine();
-        routine.setId(2);
-        connector.deleteRoutine(routine);
-
         connector.closeDatabase();
     }
 
@@ -37,30 +48,65 @@ public class RoutinesDBTests {
     }
 
     @Test
-    public void testAddNewRoutine() {
+    public void testAddNewRoutineWithoutExercises() {
         boolean result;
         Routine routine = new Routine();
         routine.setId(2);
-        routine.setRoutineName("Test routine");
+        routine.setRoutineName("Upper 1");
 
         result = connector.addRoutine(routine);
 
         assertTrue(result);
     }
 
-    @BeforeEach
-    public void createRoutinesForFindUpdateDeleteTests() {
+    @Test
+    public void testErrorAddingDuplicateRoutine() {
         boolean result;
         Routine routine = new Routine();
-        routine.setId(3);
-        routine.setRoutineName("Upper");
+        routine.setId(1);
+
         result = connector.addRoutine(routine);
+
+        assertFalse(result);
+    }
+
+    @Test
+    public void testAddNewRoutineWithExercises() {
+        boolean result;
+        Routine routine = new Routine();
+        routine.setId(2);
+        routine.setRoutineName("Upper 1");
+
+        Exercise exercise = new CardioExercise();
+
+        server.Model.Set set1 = server.Model.Set.builder()
+                .reps(10)
+                .distance(10)
+                .build();
+        server.Model.Set set2 = server.Model.Set.builder()
+                .reps(10)
+                .distance(10)
+                .build();
+
+        ExerciseSet exerciseSet = new ExerciseSet(exercise, List.of(set1, set2));
+
+        routine.setExerciseSets(List.of(exerciseSet));
+
+        result = connector.addRoutine(routine);
+
+        assertTrue(result);
+    }
+
+    @Test
+    public void testFindAllRoutines() {
+        int numbAllRoutines = connector.findAllRoutines();
+        assertEquals(3, numbAllRoutines);
     }
 
     @Test
     public void testFindRoutineById() {
         Optional<Routine> routineSearch;
-        routineSearch = connector.findById(3);
+        routineSearch = connector.findById(1);
 
         assertTrue(routineSearch.isPresent());
     }
@@ -68,12 +114,12 @@ public class RoutinesDBTests {
     @Test
     public void testUpdateRoutine() {
         Routine routine = new Routine();
-        routine.setId(3);
+        routine.setId(1);
         routine.setRoutineName("Legs");
 
         connector.updateRoutine(routine);
 
-        Optional<Routine> routineFound = connector.findById(3);
+        Optional<Routine> routineFound = connector.findById(1);
         assertTrue(routineFound.isPresent());
         assertEquals("Legs", routineFound.get().getRoutineName());
     }
@@ -81,12 +127,23 @@ public class RoutinesDBTests {
     @Test
     public void testDeleteRoutine() {
         Routine routine = new Routine();
-        routine.setId(3);
+        routine.setId(1);
         boolean result;
 
         result = connector.deleteRoutine(routine);
 
         assertTrue(result);
+    }
+
+    @Test
+    public void testDeleteRoutineNotFound() {
+        Routine routine = new Routine();
+        routine.setId(1000);
+        boolean result;
+
+        result = connector.deleteRoutine(routine);
+
+        assertFalse(result);
     }
 
 }

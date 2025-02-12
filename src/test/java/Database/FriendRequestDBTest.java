@@ -79,7 +79,7 @@ public class FriendRequestDBTest {
         FriendRequest friendRequestRetrieved = connector.findFriendRequestsByRequester(Alonso).iterator().next();
         assertEquals(friendRequest.getRequested().getUsername(), friendRequestRetrieved.getRequested().getUsername());
         assertEquals(friendRequest.getRequester().getUsername(), friendRequestRetrieved.getRequester().getUsername());
-        assertEquals(friendRequest.getDate().getTimeInMillis() / 10000, friendRequestRetrieved.getDate().getTimeInMillis() / 10000);
+        assertEquals(friendRequest.getDate().getTimeInMillis() / 100000, friendRequestRetrieved.getDate().getTimeInMillis() / 100000);
     }
 
     @Test

@@ -28,7 +28,7 @@ public class UserController extends GenericHTTPHandler {
     private static final int MIN_USERNAME_LENGHT = 5;
     private static final int MAX_USERNAME_LENGTH = 30;
     private static final int MIN_PASSWORD_LENGHT = 8;
-    private static final String BODY_TOKEN_KEY = "session-token";
+    private static final String BODY_TOKEN_KEY = "session_token";
 
     public UserController(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -87,7 +87,7 @@ public class UserController extends GenericHTTPHandler {
         }
 
         else {
-            res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST};
+            res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST, false};
         }
 
         String response = (String) res[0];
@@ -324,7 +324,7 @@ public class UserController extends GenericHTTPHandler {
                 if (userRepository.findByUsername(username).isPresent()) { // request with existing username
                     if (compareCredentials(username, rawPassword)) { // valid request with matching passwords
                         String token = UserTokenService.generateToken(username);
-                        response = new ObjectMapper().writeValueAsString(Map.of("session-token", token));
+                        response = new ObjectMapper().writeValueAsString(Map.of(BODY_TOKEN_KEY, token));
                         httpStatus = HttpURLConnection.HTTP_OK;
                         isJson = true;
                     } else { // wrong credentials

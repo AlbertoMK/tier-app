@@ -28,7 +28,7 @@ public class UserController extends GenericHTTPHandler {
     private static final int MIN_USERNAME_LENGHT = 5;
     private static final int MAX_USERNAME_LENGTH = 30;
     private static final int MIN_PASSWORD_LENGHT = 8;
-    private static final String BODY_TOKEN_KEY = "session-token";
+    private static final String BODY_TOKEN_KEY = "session_token";
 
     public UserController(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -84,10 +84,8 @@ public class UserController extends GenericHTTPHandler {
         // /user/friend/reject -> Rejects a friend request
         else if (nextSegment.isPresent() && nextSegment.get().equals("friend") && secondSegment.isPresent() && secondSegment.get().equals("reject")) {
             res = rejectFriendRequest(exchange);
-        }
-
-        else {
-            res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST};
+        } else {
+            res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST, false};
         }
 
         String response = (String) res[0];
@@ -103,9 +101,7 @@ public class UserController extends GenericHTTPHandler {
         // /user/friend -> Deletes an existent friend request to requestedUsername
         if (nextSegment.isPresent() && nextSegment.get().equals("friend")) {
             res = deleteFriendRequest(exchange);
-        }
-
-        else {
+        } else {
             res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST};
         }
 
@@ -134,8 +130,7 @@ public class UserController extends GenericHTTPHandler {
                     response = "Missing attribute: requested";
                     httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
                     isJson = false;
-                }
-                else {
+                } else {
                     Optional<User> requesterUser = userRepository.findByUsername(requester);
                     Optional<User> requestedUser = userRepository.findByUsername(requested);
                     if (requesterUser.isPresent() && requestedUser.isPresent()) {
@@ -183,23 +178,26 @@ public class UserController extends GenericHTTPHandler {
                     response = "Missing attribute: requested";
                     httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
                     isJson = false;
-                }
-                else if (userRepository.findByUsername(requester).isPresent() && userRepository.findByUsername(requested).isPresent()) {
-                    User requesterUser = userRepository.findByUsername(requester).get();
-                    User requestedUser = userRepository.findByUsername(requested).get();
-                    if (FriendRequestService.getInstance().addRequest(new FriendRequest(requesterUser, requestedUser, Calendar.getInstance()))) {
-                        response = "Friend request sent";
-                        httpStatus = HttpURLConnection.HTTP_OK;
-                        isJson = false;
+                } else {
+                    Optional<User> requesterUserOptional = userRepository.findByUsername(requester);
+                    Optional<User> requestedUserOptional = userRepository.findByUsername(requested);
+                    if (requesterUserOptional.isPresent() && requestedUserOptional.isPresent()) {
+                        User requesterUser = requesterUserOptional.get();
+                        User requestedUser = requestedUserOptional.get();
+                        if (FriendRequestService.getInstance().addRequest(new FriendRequest(requesterUser, requestedUser, Calendar.getInstance()))) {
+                            response = "Friend request sent";
+                            httpStatus = HttpURLConnection.HTTP_OK;
+                            isJson = false;
+                        } else {
+                            response = "This user has already sent a friend request";
+                            httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                            isJson = false;
+                        }
                     } else {
-                        response = "This user has already sent a friend request";
-                        httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                        response = "Usernames not found";
+                        httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
                         isJson = false;
                     }
-                } else {
-                    response = "Usernames not found";
-                    httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
-                    isJson = false;
                 }
             }
         } catch (IOException e) {
@@ -324,7 +322,7 @@ public class UserController extends GenericHTTPHandler {
                 if (userRepository.findByUsername(username).isPresent()) { // request with existing username
                     if (compareCredentials(username, rawPassword)) { // valid request with matching passwords
                         String token = UserTokenService.generateToken(username);
-                        response = new ObjectMapper().writeValueAsString(Map.of("session-token", token));
+                        response = new ObjectMapper().writeValueAsString(Map.of(BODY_TOKEN_KEY, token));
                         httpStatus = HttpURLConnection.HTTP_OK;
                         isJson = true;
                     } else { // wrong credentials

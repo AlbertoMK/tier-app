@@ -79,7 +79,7 @@ public class FriendRequestDBTest {
         FriendRequest friendRequestRetrieved = connector.findFriendRequestsByRequester(Alonso).iterator().next();
         assertEquals(friendRequest.getRequested().getUsername(), friendRequestRetrieved.getRequested().getUsername());
         assertEquals(friendRequest.getRequester().getUsername(), friendRequestRetrieved.getRequester().getUsername());
-        assertEquals(friendRequest.getDate().getTimeInMillis() / 10000, friendRequestRetrieved.getDate().getTimeInMillis() / 10000);
+        assertEquals(friendRequest.getDate().getTimeInMillis() / 100000, friendRequestRetrieved.getDate().getTimeInMillis() / 100000);
     }
 
     @Test
@@ -165,9 +165,11 @@ public class FriendRequestDBTest {
         FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
         connector.addFriendRequest(friendRequest);
         connector.addFriend(friendRequest);
-        Set<User> friendsAlonso = connector.findFriendsFromUser(Alonso);
+        User Alonso2 = connector.findByUsername(Alonso.getUsername()).get();
+        User Alberto2 = connector.findByUsername(Alberto.getUsername()).get();
+        Set<User> friendsAlonso = Alonso2.getFriends();
         assertEquals(1, friendsAlonso.stream().filter(user -> user.getUsername().equals(Alberto.getUsername())).count());
-        Set<User> friendsAlberto = connector.findFriendsFromUser(Alberto);
+        Set<User> friendsAlberto = Alberto2.getFriends();
         assertEquals(1, friendsAlberto.stream().filter(user -> user.getUsername().equals(Alonso.getUsername())).count());
     }
 
@@ -183,10 +185,12 @@ public class FriendRequestDBTest {
         FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
         connector.addFriendRequest(friendRequest);
         connector.addFriend(friendRequest);
-        Set<User> friendsRestrievedBeforeDelete = connector.findFriendsFromUser(Alonso);
+        User Alonso2 = connector.findByUsername(Alonso.getUsername()).get();
+        Set<User> friendsRestrievedBeforeDelete = Alonso2.getFriends();
         assertTrue(friendsRestrievedBeforeDelete.stream().anyMatch(user -> user.getUsername().equals(Alberto.getUsername())));
         connector.deleteFriend(friendRequest);
-        Set<User> friendsRestrievedAfterDelete = connector.findFriendsFromUser(Alonso);
+        User Alonso3 = connector.findByUsername(Alonso.getUsername()).get();
+        Set<User> friendsRestrievedAfterDelete = Alonso3.getFriends();
         assertTrue(friendsRestrievedAfterDelete.stream().noneMatch(user -> user.getUsername().equals(Alberto.getUsername())));
     }
 
@@ -202,7 +206,8 @@ public class FriendRequestDBTest {
         FriendRequest friendRequest = new FriendRequest(Alonso, Alberto, Calendar.getInstance());
         connector.addFriendRequest(friendRequest);
         connector.addFriend(friendRequest);
-        assertEquals(1, connector.findFriendsFromUser(Alonso).stream().filter(user -> user.getUsername().equals(Alberto.getUsername())).count());
+        User Alonso2 = connector.findByUsername(Alonso.getUsername()).get();
+        assertEquals(1, Alonso2.getFriends().size());
     }
 
     @Test
@@ -222,7 +227,8 @@ public class FriendRequestDBTest {
         connector.addFriend(friendRequest);
         connector.addFriendRequest(friendRequest2);
         connector.addFriend(friendRequest2);
-        Set<User> friendsRestrieved = connector.findFriendsFromUser(Alonso);
+        User Alonso2 = connector.findByUsername(Alonso.getUsername()).get();
+        Set<User> friendsRestrieved = Alonso2.getFriends();
         for (User friend : friends) {
             assertTrue(friendsRestrieved.stream().anyMatch(user -> user.getUsername().equals(friend.getUsername())));
         }

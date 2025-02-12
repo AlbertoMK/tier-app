@@ -10,26 +10,41 @@ import java.util.Calendar;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
-@Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
 public class User {
 
+    @Getter
     private String username;
+    @Getter
     private String password;
+    @Getter
     private Calendar dateOfBirth;
-    private List<Routine> routines;
-    private Set<User> friends;
+    private Set<LazyReference<User>> friends;
 
 
     public User (String username, String password, Calendar dateOfBirth) {
         this.username = username;
         this.password = password;
         this.dateOfBirth = dateOfBirth;
-        routines = new ArrayList<>();
         friends = new HashSet<>();
+    }
+
+    /**
+     *
+     * @param username
+     * @param password
+     * @param dateOfBirth
+     * @param friendsMethods Set containing method to access friends
+     */
+    public User(String username, String password, Calendar dateOfBirth, Set<Supplier<User>> friendsMethods) {
+        this(username, password, dateOfBirth);
+        this.friends = friendsMethods.stream()
+                .map(LazyReference::new)
+                .collect(Collectors.toSet());
     }
 
     public boolean equals(Object object) {
@@ -39,18 +54,9 @@ public class User {
         return false;
     }
 
-    public boolean addFriend(User friend) {
-        if (friends.contains(friend))
-            return false;
-        friends.add(friend);
-        return true;
-    }
-
-    public boolean removeFriend(User friend) {
-        if (friends.contains(friend)) {
-            friends.remove(friend);
-            return true;
-        }
-        return false;
+    public Set<User> getFriends() {
+        return friends.stream().map(userLazyReference -> {
+            return userLazyReference.get();
+        }).collect(Collectors.toSet());
     }
 }

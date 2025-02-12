@@ -53,16 +53,37 @@ public class MongoDBConnector implements RoutineRepository{
         MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
         Boolean result;
         try {
-            // Allows to create a routine without exercises
-            List<String> exercises = (routine.getExerciseSets() == null || routine.getExerciseSets().isEmpty()) ?
-                    new ArrayList<>() :
-                    routine.getExerciseSets().stream()
-                            .map(exercise -> exercise.getExercise().getExerciseName())
-                            .collect(Collectors.toList());
-            Document newRoutine = new Document("_id", routine.getId())
-                    .append("name", routine.getRoutineName())
-                    .append("exercises", exercises);
-            collection.insertOne(newRoutine);
+            Document document = new Document();
+            document.append("name", routine.getRoutineName());
+            document.append("_id", routine.getId());
+            List<ExerciseSet> exerciseSets = routine.getExerciseSets();
+            List<Document> exerciseSetsDocument = new ArrayList<>();
+            exerciseSets.forEach(exerciseSet -> {
+                Document exerciseSetDocument = new Document();
+                exerciseSetDocument.append("exerciseName", exerciseSet.getExercise().getExerciseName());
+                List<Document> setsDocument = new ArrayList<>();
+                exerciseSet.getSets().forEach(set -> {
+                    Document setDocument = new Document();
+                    setDocument.append("type", set.getSetType().name());
+                    switch (exerciseSet.getExercise().getSetsType()) {
+                        case TIME -> setDocument.append("duration", set.getDuration());
+                        case REPETITIONS -> setDocument.append("reps", set.getReps());
+                        case TIME_DISTANCE -> {
+                            setDocument.append("duration", set.getDuration());
+                            setDocument.append("distance", set.getDistance());
+                        }
+                        case WEIGHTED_REPETITIONS -> {
+                            setDocument.append("weight", set.getWeight());
+                            setDocument.append("reps", set.getReps());
+                        }
+                    }
+                    setsDocument.add(setDocument);
+                });
+                exerciseSetDocument.append("sets", setsDocument);
+                exerciseSetsDocument.add(exerciseSetDocument);
+            });
+            document.append("exerciseSets", exerciseSetsDocument);
+            collection.insertOne(document);
             result = true;
         } catch (Exception e) {
             LoggerService.logerror("Error inserting new routine");

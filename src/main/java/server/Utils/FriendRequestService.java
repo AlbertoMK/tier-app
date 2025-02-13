@@ -64,4 +64,9 @@ public class FriendRequestService {
                   .map(friendRequest -> friendRequest.getRequester().getUsername())
                   .collect(Collectors.toSet());
     }
+
+    // verifies if there is a friend request with the requester & requested given
+    public boolean friendRequestExists(User requester, User requested ) {
+        return getRequestsAsRequester(requester.getUsername()).contains(requested.getUsername());
+    }
 }

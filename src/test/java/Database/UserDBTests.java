@@ -11,7 +11,6 @@ import server.Model.User;
 import java.sql.SQLException;
 import java.util.Calendar;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -35,7 +34,7 @@ public class UserDBTests {
 
     @BeforeEach
     public void truncateTables() {
-        connector.truncateUserTables();
+        connector.truncateTables();
     }
 
     @Test

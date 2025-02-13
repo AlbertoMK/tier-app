@@ -9,5 +9,5 @@
 | Devuelve todos los usuarios | GET | /user | N/A | N/A |
 | Crea un nuevo usuario | POST | /user | N/A | Atributos de user. Obligatorios 'username', 'password', 'dateOfBirth' |
 | Genera un token para hacer login | POST | /user/login | N/A | 'username', 'password' |
-| Crea una solicitud de amistad | POST | /user/friend | N/A | 'session-token', 'requested' (es el username del usuario al que le haces la solicitud) |
-| Elimina una solicitud de amistad | DELETE | /user/friend | N/A | 'session-token', 'requested' (es el username del usuario del cual quieres eliminar la solicitud) |
+| Crea una solicitud de amistad | POST | /user/friend | N/A | 'session_token', 'requested' (es el username del usuario al que le haces la solicitud) |
+| Elimina una solicitud de amistad | DELETE | /user/friend | N/A | 'session_token', 'requested' (es el username del usuario del cual quieres eliminar la solicitud) |

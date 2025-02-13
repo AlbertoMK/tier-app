@@ -56,35 +56,41 @@ public class MongoDBConnector implements RoutineRepository{
             Document document = new Document();
             document.append("name", routine.getRoutineName());
             document.append("_id", routine.getId());
-            List<ExerciseSet> exerciseSets = routine.getExerciseSets();
-            List<Document> exerciseSetsDocument = new ArrayList<>();
-            exerciseSets.forEach(exerciseSet -> {
-                Document exerciseSetDocument = new Document();
-                exerciseSetDocument.append("exerciseName", exerciseSet.getExercise().getExerciseName());
-                List<Document> setsDocument = new ArrayList<>();
-                exerciseSet.getSets().forEach(set -> {
-                    Document setDocument = new Document();
-                    setDocument.append("type", set.getSetType().name());
-                    switch (exerciseSet.getExercise().getSetsType()) {
-                        case TIME -> setDocument.append("duration", set.getDuration());
-                        case REPETITIONS -> setDocument.append("reps", set.getReps());
-                        case TIME_DISTANCE -> {
-                            setDocument.append("duration", set.getDuration());
-                            setDocument.append("distance", set.getDistance());
+            if (routine.getExerciseSets() == null) {
+                LoggerService.logerror("Error inserting new routine - You need to insert almost one exercise");
+                result = false;
+                return result;
+            } else {
+                List<ExerciseSet> exerciseSets = routine.getExerciseSets();
+                List<Document> exerciseSetsDocument = new ArrayList<>();
+                exerciseSets.forEach(exerciseSet -> {
+                    Document exerciseSetDocument = new Document();
+                    exerciseSetDocument.append("exerciseName", exerciseSet.getExercise().getExerciseName());
+                    List<Document> setsDocument = new ArrayList<>();
+                    exerciseSet.getSets().forEach(set -> {
+                        Document setDocument = new Document();
+                        setDocument.append("type", set.getSetType().name());
+                        switch (exerciseSet.getExercise().getSetsType()) {
+                            case TIME -> setDocument.append("duration", set.getDuration());
+                            case REPETITIONS -> setDocument.append("reps", set.getReps());
+                            case TIME_DISTANCE -> {
+                                setDocument.append("duration", set.getDuration());
+                                setDocument.append("distance", set.getDistance());
+                            }
+                            case WEIGHTED_REPETITIONS -> {
+                                setDocument.append("weight", set.getWeight());
+                                setDocument.append("reps", set.getReps());
+                            }
                         }
-                        case WEIGHTED_REPETITIONS -> {
-                            setDocument.append("weight", set.getWeight());
-                            setDocument.append("reps", set.getReps());
-                        }
-                    }
-                    setsDocument.add(setDocument);
+                        setsDocument.add(setDocument);
+                    });
+                    exerciseSetDocument.append("sets", setsDocument);
+                    exerciseSetsDocument.add(exerciseSetDocument);
                 });
-                exerciseSetDocument.append("sets", setsDocument);
-                exerciseSetsDocument.add(exerciseSetDocument);
-            });
-            document.append("exerciseSets", exerciseSetsDocument);
-            collection.insertOne(document);
-            result = true;
+                document.append("exerciseSets", exerciseSetsDocument);
+                collection.insertOne(document);
+                result = true;
+            }
         } catch (Exception e) {
             LoggerService.logerror("Error inserting new routine");
             result = false;
@@ -135,8 +141,7 @@ public class MongoDBConnector implements RoutineRepository{
     }
 
     @Override
-    public int findAllRoutines() {
-        int count = 0;
+    public List<Routine> findAllRoutines() {
         List<Routine> routines = new ArrayList<>();
         MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
 
@@ -146,11 +151,8 @@ public class MongoDBConnector implements RoutineRepository{
             actualRoutine.setRoutineName((String) document.get("name"));
             actualRoutine.setExerciseSets((List) document.get("exercises"));
             routines.add(actualRoutine);
-            count++;
-
-            LoggerService.log(actualRoutine.getId() + " - " + actualRoutine.getRoutineName());
         }
-        return count;
+        return routines;
     }
 
     @Override

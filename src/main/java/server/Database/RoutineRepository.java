@@ -17,4 +17,5 @@ public interface RoutineRepository {
     public List<Routine> findAllRoutines();
     public List<Routine> findRoutinesCreatedByUser(User user);
     public Optional<Routine> findRoutinesWithFilters(Map<String, String> filter);
+    void removeAllRoutines();
 }

@@ -6,21 +6,20 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import org.bson.Document;
+import org.bson.conversions.Bson;
 import server.Model.Exercise;
 import server.Model.ExerciseSet;
 import server.Model.GymExercise;
 import server.Model.Routine;
 import server.Model.Set;
-import server.Model.User;
 import server.Utils.LoggerService;
 import server.Utils.PropertiesLoader;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
-public class MongoDBConnector implements RoutineRepository {
+public class MongoDBConnector {
 
     private MongoDatabase database;
     private MongoClient client;
@@ -57,6 +56,15 @@ public class MongoDBConnector implements RoutineRepository {
 
     public boolean addRoutine(Routine routine) {
         MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
+        Document document = routineToDocument(routine).get();
+        if (document.isEmpty()) {
+            return false;
+        }
+        collection.insertOne(document);
+        return true;
+    }
+
+    private Optional<Document> routineToDocument(Routine routine) {
         try {
             Document document = new Document();
             document.append("name", routine.getRoutineName());
@@ -86,15 +94,51 @@ public class MongoDBConnector implements RoutineRepository {
                 });
                 exerciseSetDocument.append("sets", setsDocument);
                 exerciseSetsDocument.add(exerciseSetDocument);
+                document.append("exerciseSets", exerciseSetsDocument);
             });
-            document.append("exerciseSets", exerciseSetsDocument);
-            collection.insertOne(document);
-            return true;
-
+            return Optional.of(document);
         } catch (Exception e) {
-            LoggerService.logerror("Error inserting new routine");
-            return false;
+            LoggerService.logerror("Error transforming Routine to MongoDB Document");
+            return Optional.empty();
         }
+    }
+
+    private Routine documentToRoutine(Document document) {
+        int id = document.getInteger("_id");
+        String name = document.getString("name");
+        List<Document> exerciseSetsDocument = (List<Document>) document.get("exerciseSets");
+        List<ExerciseSet> exerciseSets = new ArrayList<>();
+
+        for (Document exerciseSetDoc : exerciseSetsDocument) {
+            String exerciseName = exerciseSetDoc.getString("exerciseName");
+            GymExercise exercise = new GymExercise(exerciseName, null,  null, null, null, null, null, null);
+            List<Document> setsDocument = (List<Document>) exerciseSetDoc.get("sets");
+            List<server.Model.Set> sets = new ArrayList<>();
+            Exercise.SetsType setsType = exercise.getSetsType();
+            for (Document setDoc : setsDocument) {
+                Set.SetType type = Set.SetType.valueOf(setDoc.getString("type"));
+                server.Model.Set.SetBuilder set = Set.builder()
+                        .setType(type);
+
+                switch (setsType) {
+                    case TIME -> set.duration(setDoc.getInteger("duration"));
+                    case REPETITIONS -> set.reps(setDoc.getInteger("reps"));
+                    case TIME_DISTANCE -> {
+                        set.duration(setDoc.getInteger("duration"));
+                        set.distance(setDoc.getInteger("distance"));
+                    }
+                    case WEIGHTED_REPETITIONS -> {
+                        set.weight(setDoc.getDouble("weight"));
+                        set.reps(setDoc.getInteger("reps"));
+                    }
+                }
+                sets.add(set.build());
+            }
+
+            ExerciseSet exerciseSet = new ExerciseSet(exercise, sets);
+            exerciseSets.add(exerciseSet);
+        }
+        return new Routine(id, name, exerciseSets);
     }
 
     public Optional<Routine> findById(int id) {
@@ -104,41 +148,8 @@ public class MongoDBConnector implements RoutineRepository {
             if (document == null) {
                 return Optional.empty();
             }
-
-            String name = document.getString("name");
-            List<Document> exerciseSetsDocument = (List<Document>) document.get("exerciseSets");
-            List<ExerciseSet> exerciseSets = new ArrayList<>();
-
-            for (Document exerciseSetDoc : exerciseSetsDocument) {
-                String exerciseName = exerciseSetDoc.getString("exerciseName");
-                GymExercise exercise = new GymExercise(exerciseName);
-                List<Document> setsDocument = (List<Document>) exerciseSetDoc.get("sets");
-                List<server.Model.Set> sets = new ArrayList<>();
-                Exercise.SetsType setsType = exercise.getSetsType();
-                for (Document setDoc : setsDocument) {
-                    Set.SetType type = Set.SetType.valueOf(setDoc.getString("type"));
-                    server.Model.Set.SetBuilder set = Set.builder()
-                            .setType(type);
-
-                    switch (setsType) {
-                        case TIME -> set.duration(setDoc.getInteger("duration"));
-                        case REPETITIONS -> set.reps(setDoc.getInteger("reps"));
-                        case TIME_DISTANCE -> {
-                            set.duration(setDoc.getInteger("duration"));
-                            set.distance(setDoc.getInteger("distance"));
-                        }
-                        case WEIGHTED_REPETITIONS -> {
-                            set.weight(setDoc.getDouble("weight"));
-                            set.reps(setDoc.getInteger("reps"));
-                        }
-                    }
-                    sets.add(set.build());
-                }
-
-                ExerciseSet exerciseSet = new ExerciseSet(exercise, sets);
-                exerciseSets.add(exerciseSet);
-            }
-            return Optional.of(new Routine(id, name, exerciseSets));
+            Routine routine = documentToRoutine(document);
+            return Optional.of(routine);
 
         } catch (Exception e) {
             LoggerService.logerror("Error retrieving routine with id " + id);
@@ -146,21 +157,17 @@ public class MongoDBConnector implements RoutineRepository {
         }
     }
 
-    @Override
     public boolean updateRoutine(Routine routine) {
         MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
-        boolean result;
-        if (findById(routine.getId()).isPresent()) {
-            collection.updateOne(new Document("_id", routine.getId()), new Document("$set", new Document("name", routine.getRoutineName())));
-            result = true;
-        } else {
-            LoggerService.logerror("Error updating routine");
-            result = false;
+        Bson filter = Filters.eq("_id", routine.getId());
+        Document document = routineToDocument(routine).get();
+        if (document.isEmpty()) {
+            return false;
         }
-        return result;
+        collection.replaceOne(filter, document);
+        return true;
     }
 
-    @Override
     public boolean deleteRoutine(Routine routine) {
         MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
         boolean result;
@@ -171,33 +178,17 @@ public class MongoDBConnector implements RoutineRepository {
             LoggerService.logerror("Error deleting routine");
             result = false;
         }
-
         return result;
     }
 
-    @Override
     public List<Routine> findAllRoutines() {
         List<Routine> routines = new ArrayList<>();
         MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
 
         for (Document document : collection.find()) {
-            Routine actualRoutine = new Routine();
-            actualRoutine.setId((int) document.get("_id"));
-            actualRoutine.setRoutineName((String) document.get("name"));
-            actualRoutine.setExerciseSets((List) document.get("exercises"));
-            routines.add(actualRoutine);
+            Routine routine = documentToRoutine(document);
+            routines.add(routine);
         }
         return routines;
     }
-
-    @Override
-    public List<Routine> findRoutinesCreatedByUser(User user) {
-        return List.of();
-    }
-
-    @Override
-    public Optional<Routine> findRoutinesWithFilters(Map<String, String> filter) {
-        return Optional.empty();
-    }
-
 }

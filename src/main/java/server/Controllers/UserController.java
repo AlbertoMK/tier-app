@@ -52,13 +52,17 @@ public class UserController extends GenericHTTPHandler {
                 res = getAllUsersEndpoint();
             }
         }
-        // 3. /user/requests -> Retrieves list of outgoing requests
+        // 3. /user/outgoing -> Retrieves list of outgoing requests
         else if (nextSegment.get().equals("outgoing")) {
             res = getOutgoingRequests(params);
 
-        // 3. /user/incoming -> Retrieves list of incoming requests
+        // 4. /user/incoming -> Retrieves list of incoming requests
         } else if (nextSegment.get().equals("incoming")) {
             res = getIncomingRequests(params);
+
+        // 5. /user/friends -> Retrieves list of friends
+        } else if (nextSegment.get().equals("friends")) {
+            res = getUserFriends(params);
 
         } else {
             res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST, false};
@@ -199,6 +203,41 @@ public class UserController extends GenericHTTPHandler {
             LoggerService.logerror("Internal error while obtaining http body from request.");
         }
 
+        return new Object[]{response, httpStatus, isJson};
+    }
+
+
+    private Object[] getUserFriends(Map<String, String> params) {
+        String response;
+        int httpStatus;
+        boolean isJson;
+
+        try {
+            if (!params.containsKey(BODY_TOKEN_KEY) || requiresToken(params).isEmpty()) {
+                response = "Token not valid or not present";
+                httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
+                isJson = false;
+            } else {
+                String username = requiresToken(params).get();
+                Optional<User> optionalUser = userRepository.findByUsername(username);
+                if (optionalUser.isPresent()) {
+                    User user = optionalUser.get();
+                    Set<User> friends = user.getFriends();
+                    response = new ObjectMapper().writeValueAsString(friends);
+                    httpStatus = HttpURLConnection.HTTP_OK;
+                    isJson = true;
+                } else {
+                    response = "Username not found";
+                    httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
+                    isJson = false;
+                }
+            }
+        } catch (IOException e) {
+            response = "Internal error";
+            httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            isJson = false;
+            LoggerService.logerror("Internal error while obtaining http body from request.");
+        }
         return new Object[]{response, httpStatus, isJson};
     }
 

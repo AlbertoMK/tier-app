@@ -59,4 +59,8 @@ public class User {
             return userLazyReference.get();
         }).collect(Collectors.toSet());
     }
+
+    public void addFriend(User user) {
+        friends.add(new LazyReference<>(user));
+    }
 }

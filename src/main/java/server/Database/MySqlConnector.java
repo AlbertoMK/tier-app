@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public class MySqlConnector implements UserRepository, ExerciseRepository {
 
@@ -58,45 +60,47 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
     // USERS
 
     @Override
-    public Optional<User> findByUsername(String username) { // not finished
+    public Optional<User> findByUsername(String username) {
         try {
             PreparedStatement statement = connection.prepareStatement(String.format("SELECT * FROM %s WHERE username=?", USERS_TABLE_NAME));
             statement.setString(1, username);
             ResultSet rs = statement.executeQuery();
-            while (rs.next()) {
-                User user = new User();
-                user.setUsername(rs.getString("username"));
-                user.setPassword(rs.getString("password"));
-                Calendar dateOfBirth = Calendar.getInstance();
-                dateOfBirth.setTime(rs.getDate("birth_date"));
-                user.setDateOfBirth(dateOfBirth);
-                return Optional.of(user);
-            }
+            List<User> users = resultSetToUsers(rs);
+            return users.isEmpty() ? Optional.empty() : Optional.of(users.get(0));
         } catch (SQLException e) {
             LoggerService.logerror("Error while finding user by username");
         }
         return Optional.empty();
     }
 
+    private List<User> resultSetToUsers(ResultSet rs) throws SQLException {
+        List<User> users = new ArrayList<>();
+        while (rs.next()) {
+            User user = new User();
+            String username = rs.getString("username");
+            user.setUsername(username);
+            Set<String> friends = findFriendsFromUser(user);
+            String password = rs.getString("password");
+            Calendar dateOfBirth = Calendar.getInstance();
+            dateOfBirth.setTime(rs.getDate("birth_date"));
+            User realUser = new User(username, password, dateOfBirth, friends.stream().map(friendUsername ->
+                    (Supplier<User>) () -> findByUsername(friendUsername).get()).collect(Collectors.toSet()));
+            users.add(realUser);
+        }
+        return users;
+    }
+
     @Override
     public List<User> findAllUsers() {
-        List<User> users = new ArrayList<>();
         try {
             Statement statement = connection.createStatement();
             ResultSet rs = statement.executeQuery(String.format("SELECT * FROM %s", USERS_TABLE_NAME));
-            while (rs.next()) {
-                User user = new User();
-                user.setUsername(rs.getString("username"));
-                user.setPassword(rs.getString("password"));
-                Calendar dateOfBirth = Calendar.getInstance();
-                dateOfBirth.setTime(rs.getDate("birth_date"));
-                user.setDateOfBirth(dateOfBirth);
-                users.add(user);
-            }
+            List<User> users = resultSetToUsers(rs);
+            return users;
         } catch (SQLException e) {
             LoggerService.logerror("Error while finding all users");
         }
-        return users;
+        return List.of();
     }
 
     public void addUser(User user) {
@@ -257,10 +261,10 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
         }
     }
 
-    public Set<User> findFriendsFromUser(User friend) {
-        Set<User> friends = new HashSet<>();
+    public Set<String> findFriendsFromUser(User friend) {
+        Set<String> friends = new HashSet<>();
         try {
-            PreparedStatement statement = connection.prepareStatement(String.format("SELECT * FROM %s WHERE username1=? OR username2=?",
+            PreparedStatement statement = connection.prepareStatement(String.format("SELECT username1, username2 FROM %s WHERE username1=? OR username2=?",
                     FRIENDS_TABLE_NAME));
 
             statement.setString(1, friend.getUsername());
@@ -272,9 +276,9 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
                 String username1 = rs.getString("username1");
                 String username2 = rs.getString("username2");
                 if (username1.equals(friend.getUsername())) {
-                    friends.add(findByUsername(username2).get());
+                    friends.add(username2);
                 } else {
-                    friends.add(findByUsername(username1).get());
+                    friends.add(username1);
                 }
             }
         } catch (SQLException e) {

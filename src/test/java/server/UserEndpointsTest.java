@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import server.Controllers.UserController;
 import server.Database.MySqlConnector;
 import server.Model.FriendRequest;
+import server.Model.LazyReference;
 import server.Model.User;
 import server.Utils.FriendRequestService;
 import server.Utils.UserTokenService;
@@ -627,26 +628,27 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     }
 
     @Test
-    public void usersAlreadyFriendsTest() { // Alberto -> Unai
+    public void usersAlreadyFriendsTest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
         App.attachDatabaseManager(mySqlConnector);
 
-        when(mySqlConnector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
-        when(mySqlConnector.findByUsername(Unai.getUsername())).thenReturn(Optional.of(Unai));
-        FriendRequest friendRequest = new FriendRequest(Alberto, Unai, Calendar.getInstance());
-        Unai.addFriend(Alberto);
-//        Alberto.addFriend(Unai); Si añado esto hay recursividad infinita
-        when(mySqlConnector.findFriendRequestsByRequester(Alberto)).thenReturn(Set.of(friendRequest));
+        User user1 = new User("nombre1", "pass1", Calendar.getInstance());
+        User user2 = new User("nombre2", "pass2", Calendar.getInstance());
+        user1.setFriends(Set.of(new LazyReference<>(user2)));
+        user2.setFriends(Set.of(new LazyReference<>(user1)));
+
+        when(mySqlConnector.findByUsername(user1.getUsername())).thenReturn(Optional.of(user1));
+        when(mySqlConnector.findByUsername(user2.getUsername())).thenReturn(Optional.of(user2));
+        FriendRequest friendRequest = new FriendRequest(user2, user1, Calendar.getInstance());
+        when(mySqlConnector.findFriendRequestsByRequester(user2)).thenReturn(Set.of(friendRequest));
 
         FriendRequestService.init(mySqlConnector);
 
         try {
-            String token = UserTokenService.generateToken(Unai.getUsername());
-
+            String token = UserTokenService.generateToken(user1.getUsername());
             String requestBody = new ObjectMapper().writeValueAsString(Map.of(
                     "session_token", token,
-                    "requester", Alberto.getUsername(),
-                    "requested", Unai.getUsername()
+                    "requester", user2.getUsername()
             ));
 
             HttpResponse<String> response = makeHttpRequest("user/friend/accept", HttpMethod.POST, requestBody);
@@ -674,8 +676,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
             String requestBody = new ObjectMapper().writeValueAsString(Map.of(
                     "session_token", token,
-                    "requester", Alberto.getUsername(),
-                    "requested", Unai.getUsername()
+                    "requester", Alberto.getUsername()
             ));
 
             HttpResponse<String> response = makeHttpRequest("user/friend/accept", HttpMethod.POST, requestBody);
@@ -702,8 +703,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
             String requestBody = new ObjectMapper().writeValueAsString(Map.of(
                     "session_token", token,
-                    "requester", Alberto.getUsername(),
-                    "requested", Unai.getUsername()
+                    "requester", Alberto.getUsername()
             ));
 
             HttpResponse<String> response = makeHttpRequest("user/friend/accept", HttpMethod.POST, requestBody);
@@ -730,8 +730,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
             String requestBody = new ObjectMapper().writeValueAsString(Map.of(
                     "session_token", token,
-                    "requester", Alberto.getUsername(),
-                    "requested", Unai.getUsername()
+                    "requester", Alberto.getUsername()
             ));
 
             HttpResponse<String> response = makeHttpRequest("user/friend/accept", HttpMethod.POST, requestBody);
@@ -769,8 +768,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
             String token = UserTokenService.generateToken(Unai.getUsername());
 
             String requestBody = new ObjectMapper().writeValueAsString(Map.of(
-                    "session_token", token,
-                    "requested", Unai.getUsername()
+                    "session_token", token
             ));
 
             HttpResponse<String> response = makeHttpRequest("user/friend/reject", HttpMethod.POST, requestBody);
@@ -796,8 +794,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
             String requestBody = new ObjectMapper().writeValueAsString(Map.of(
                     "session_token", token,
-                    "requester", Alberto.getUsername(),
-                    "requested", Unai.getUsername()
+                    "requester", Alberto.getUsername()
             ));
 
             HttpResponse<String> response = makeHttpRequest("user/friend/reject", HttpMethod.POST, requestBody);
@@ -824,8 +821,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
             String requestBody = new ObjectMapper().writeValueAsString(Map.of(
                     "session_token", token,
-                    "requester", Alberto.getUsername(),
-                    "requested", Unai.getUsername()
+                    "requester", Alberto.getUsername()
             ));
 
             HttpResponse<String> response = makeHttpRequest("user/friend/reject", HttpMethod.POST, requestBody);
@@ -837,7 +833,4 @@ public class UserEndpointsTest extends ServerEndpointsTest {
             fail("Unexpected exception happened: " + ex.getMessage());
         }
     }
-
-
-
 }

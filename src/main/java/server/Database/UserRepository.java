@@ -19,5 +19,5 @@ public interface UserRepository {
     public Set<FriendRequest> findFriendRequestsByRequester(User requester);
     public Set<FriendRequest> findFriendRequestsByRequested(User requested);
     public Optional<FriendRequest> findFriendRequestsByBothUsers(User requester, User requested);
-    public Set<User> findFriendsFromUser(User friend);
+    public Set<String> findFriendsFromUser(User friend);
 }

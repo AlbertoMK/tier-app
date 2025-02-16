@@ -84,9 +84,7 @@ public class UserController extends GenericHTTPHandler {
         // /user/friend/reject -> Rejects a friend request
         else if (nextSegment.isPresent() && nextSegment.get().equals("friend") && secondSegment.isPresent() && secondSegment.get().equals("reject")) {
             res = rejectFriendRequest(exchange);
-        }
-
-        else {
+        } else {
             res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST, false};
         }
 
@@ -103,9 +101,7 @@ public class UserController extends GenericHTTPHandler {
         // /user/friend -> Deletes an existent friend request to requestedUsername
         if (nextSegment.isPresent() && nextSegment.get().equals("friend")) {
             res = deleteFriendRequest(exchange);
-        }
-
-        else {
+        } else {
             res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST};
         }
 
@@ -134,8 +130,7 @@ public class UserController extends GenericHTTPHandler {
                     response = "Missing attribute: requested";
                     httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
                     isJson = false;
-                }
-                else {
+                } else {
                     Optional<User> requesterUser = userRepository.findByUsername(requester);
                     Optional<User> requestedUser = userRepository.findByUsername(requested);
                     if (requesterUser.isPresent() && requestedUser.isPresent()) {
@@ -183,23 +178,26 @@ public class UserController extends GenericHTTPHandler {
                     response = "Missing attribute: requested";
                     httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
                     isJson = false;
-                }
-                else if (userRepository.findByUsername(requester).isPresent() && userRepository.findByUsername(requested).isPresent()) {
-                    User requesterUser = userRepository.findByUsername(requester).get();
-                    User requestedUser = userRepository.findByUsername(requested).get();
-                    if (FriendRequestService.getInstance().addRequest(new FriendRequest(requesterUser, requestedUser, Calendar.getInstance()))) {
-                        response = "Friend request sent";
-                        httpStatus = HttpURLConnection.HTTP_OK;
-                        isJson = false;
+                } else {
+                    Optional<User> requesterUserOptional = userRepository.findByUsername(requester);
+                    Optional<User> requestedUserOptional = userRepository.findByUsername(requested);
+                    if (requesterUserOptional.isPresent() && requestedUserOptional.isPresent()) {
+                        User requesterUser = requesterUserOptional.get();
+                        User requestedUser = requestedUserOptional.get();
+                        if (FriendRequestService.getInstance().addRequest(new FriendRequest(requesterUser, requestedUser, Calendar.getInstance()))) {
+                            response = "Friend request sent";
+                            httpStatus = HttpURLConnection.HTTP_OK;
+                            isJson = false;
+                        } else {
+                            response = "This user has already sent a friend request";
+                            httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                            isJson = false;
+                        }
                     } else {
-                        response = "This user has already sent a friend request";
-                        httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                        response = "Usernames not found";
+                        httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
                         isJson = false;
                     }
-                } else {
-                    response = "Usernames not found";
-                    httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
-                    isJson = false;
                 }
             }
         } catch (IOException e) {

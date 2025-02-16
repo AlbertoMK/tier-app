@@ -12,9 +12,12 @@ public interface UserRepository {
     public Optional<User> findByUsername(String username);
     public List<User> findAllUsers();
     public void addUser(User user);
-    public void addFriendship(User user1, User user2);
     public void addFriendRequest(FriendRequest friendRequest);
     public void deleteFriendRequest(FriendRequest friendRequest);
+    public void addFriend(FriendRequest friendRequest);
+    public void deleteFriend(FriendRequest friendRequest);
     public Set<FriendRequest> findFriendRequestsByRequester(User requester);
     public Set<FriendRequest> findFriendRequestsByRequested(User requested);
+    public Optional<FriendRequest> findFriendRequestsByBothUsers(User requester, User requested);
+    public Set<String> findFriendsFromUser(User friend);
 }

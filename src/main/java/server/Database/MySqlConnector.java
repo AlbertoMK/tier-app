@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public class MySqlConnector implements UserRepository, ExerciseRepository {
 
@@ -29,6 +31,7 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
     private static final String USERS_TABLE_NAME = "users";
     private static final String FRIEND_REQUEST_TABLE_NAME = "friend_request";
     private static final String EXERCISES_TABLE_NAME = "exercises";
+    private static final String FRIENDS_TABLE_NAME = "friends";
 
     public void connectDatabase() throws SQLException {
         LoggerService.log("Starting connection with mysql database...");
@@ -54,58 +57,50 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
         }
     }
 
-    public void truncateUserTables() {
-        try {
-            Statement statement = connection.createStatement();
-            statement.executeUpdate("TRUNCATE TABLE " + USERS_TABLE_NAME);
-            statement = connection.createStatement();
-            statement.executeUpdate("TRUNCATE TABLE " + FRIEND_REQUEST_TABLE_NAME);
-        } catch (SQLException ex) {
-            LoggerService.logerror("Error while truncating users tables");
-        }
-    }
-
     // USERS
 
     @Override
-    public Optional<User> findByUsername(String username) { // not finished
+    public Optional<User> findByUsername(String username) {
         try {
-            Statement statement = connection.createStatement();
-            ResultSet rs = statement.executeQuery(String.format("SELECT * FROM %s WHERE username='%s'", USERS_TABLE_NAME, username));
-            while (rs.next()) {
-                User user = new User();
-                user.setUsername(rs.getString("username"));
-                user.setPassword(rs.getString("password"));
-                Calendar dateOfBirth = Calendar.getInstance();
-                dateOfBirth.setTime(rs.getDate("birth_date"));
-                user.setDateOfBirth(dateOfBirth);
-                return Optional.of(user);
-            }
+            PreparedStatement statement = connection.prepareStatement(String.format("SELECT * FROM %s WHERE username=?", USERS_TABLE_NAME));
+            statement.setString(1, username);
+            ResultSet rs = statement.executeQuery();
+            List<User> users = resultSetToUsers(rs);
+            return users.isEmpty() ? Optional.empty() : Optional.of(users.get(0));
         } catch (SQLException e) {
             LoggerService.logerror("Error while finding user by username");
         }
         return Optional.empty();
     }
 
+    private List<User> resultSetToUsers(ResultSet rs) throws SQLException {
+        List<User> users = new ArrayList<>();
+        while (rs.next()) {
+            User user = new User();
+            String username = rs.getString("username");
+            user.setUsername(username);
+            Set<String> friends = findFriendsFromUser(user);
+            String password = rs.getString("password");
+            Calendar dateOfBirth = Calendar.getInstance();
+            dateOfBirth.setTime(rs.getDate("birth_date"));
+            User realUser = new User(username, password, dateOfBirth, friends.stream().map(friendUsername ->
+                    (Supplier<User>) () -> findByUsername(friendUsername).get()).collect(Collectors.toSet()));
+            users.add(realUser);
+        }
+        return users;
+    }
+
     @Override
     public List<User> findAllUsers() {
-        List<User> users = new ArrayList<>();
         try {
             Statement statement = connection.createStatement();
             ResultSet rs = statement.executeQuery(String.format("SELECT * FROM %s", USERS_TABLE_NAME));
-            while (rs.next()) {
-                User user = new User();
-                user.setUsername(rs.getString("username"));
-                user.setPassword(rs.getString("password"));
-                Calendar dateOfBirth = Calendar.getInstance();
-                dateOfBirth.setTime(rs.getDate("birth_date"));
-                user.setDateOfBirth(dateOfBirth);
-                users.add(user);
-            }
+            List<User> users = resultSetToUsers(rs);
+            return users;
         } catch (SQLException e) {
             LoggerService.logerror("Error while finding all users");
         }
-        return users;
+        return List.of();
     }
 
     public void addUser(User user) {
@@ -122,10 +117,20 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
         }
     }
 
-    @Override
-    public void addFriendship(User user1, User user2) {
-
+    public void truncateTables() {
+        try {
+            Statement statement = connection.createStatement();
+            statement.executeUpdate("TRUNCATE TABLE " + USERS_TABLE_NAME);
+            statement = connection.createStatement();
+            statement.executeUpdate("TRUNCATE TABLE " + FRIEND_REQUEST_TABLE_NAME);
+            statement = connection.createStatement();
+            statement.executeUpdate("TRUNCATE TABLE " + FRIENDS_TABLE_NAME);
+        } catch (SQLException ex) {
+            LoggerService.logerror("Error while truncating users tables");
+        }
     }
+
+    // FRIENDS REQUESTS
 
     @Override
     public void addFriendRequest(FriendRequest friendRequest) {
@@ -137,15 +142,16 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
             statement.setTimestamp(3, new Timestamp(date.getTimeInMillis()));
             statement.executeUpdate();
         } catch (SQLException e) {
-            LoggerService.logerror("Error while adding friendship");
+            LoggerService.logerror("Error while adding friend request");
         }
     }
 
     @Override
     public void deleteFriendRequest(FriendRequest friendRequest) {
         try {
-            PreparedStatement statement = connection.prepareStatement(String.format("DELETE FROM %s WHERE requester='%s' AND requested='%s'",
-                      FRIEND_REQUEST_TABLE_NAME, friendRequest.getRequester().getUsername(), friendRequest.getRequested().getUsername()));
+            PreparedStatement statement = connection.prepareStatement(String.format("DELETE FROM %s WHERE requester=? AND requested=?", FRIEND_REQUEST_TABLE_NAME));
+            statement.setString(1, friendRequest.getRequester().getUsername());
+            statement.setString(2, friendRequest.getRequested().getUsername());
             statement.executeUpdate();
         } catch (SQLException e) {
             LoggerService.logerror("Error while deleting friend request");
@@ -156,8 +162,9 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
     public Set<FriendRequest> findFriendRequestsByRequester(User requester) {
         Set<FriendRequest> friendRequestSet = new HashSet<>();
         try {
-            Statement statement = connection.createStatement();
-            ResultSet rs = statement.executeQuery(String.format("SELECT * FROM %s WHERE requester='%s'", FRIEND_REQUEST_TABLE_NAME, requester.getUsername()));
+            PreparedStatement statement = connection.prepareStatement(String.format("SELECT * FROM %s WHERE requester=?", FRIEND_REQUEST_TABLE_NAME));
+            statement.setString(1, requester.getUsername());
+            ResultSet rs = statement.executeQuery();
             while (rs.next()) {
                 FriendRequest friendRequest = new FriendRequest();
                 Optional<User> requestedUser = findByUsername(rs.getString("requested"));
@@ -168,8 +175,8 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
                 friendRequest.setDate(date);
                 friendRequestSet.add(friendRequest);
             }
-        } catch (Exception e) {
-            LoggerService.logerror("Error finding friend request");
+        } catch (SQLException e) {
+            LoggerService.logerror("Error finding friend request from the requester");
         }
         return friendRequestSet;
     }
@@ -178,8 +185,9 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
     public Set<FriendRequest> findFriendRequestsByRequested(User requested) {
         Set<FriendRequest> friendRequestSet = new HashSet<>();
         try {
-            Statement statement = connection.createStatement();
-            ResultSet rs = statement.executeQuery(String.format("SELECT * FROM %s WHERE requested='%s'", FRIEND_REQUEST_TABLE_NAME, requested.getUsername()));
+            PreparedStatement statement = connection.prepareStatement(String.format("SELECT * FROM %s WHERE requested=?", FRIEND_REQUEST_TABLE_NAME));
+            statement.setString(1, requested.getUsername());
+            ResultSet rs = statement.executeQuery();
             while (rs.next()) {
                 FriendRequest friendRequest = new FriendRequest();
                 Optional<User> requesterUser = findByUsername(rs.getString("requester"));
@@ -190,10 +198,93 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
                 friendRequest.setDate(date);
                 friendRequestSet.add(friendRequest);
             }
-        } catch (Exception e) {
-            LoggerService.logerror("Error finding friend request");
+        } catch (SQLException e) {
+            LoggerService.logerror("Error finding friend request from the requested");
         }
         return friendRequestSet;
+    }
+
+    @Override
+    public Optional<FriendRequest> findFriendRequestsByBothUsers(User requester, User requested) {
+        try {
+            PreparedStatement statement = connection.prepareStatement(String.format("SELECT * FROM %s WHERE requester=? AND requested=?",
+                    FRIEND_REQUEST_TABLE_NAME));
+            statement.setString(1, requester.getUsername());
+            statement.setString(2, requested.getUsername());
+            ResultSet rs = statement.executeQuery();
+            while (rs.next()) {
+                FriendRequest friendRequest = new FriendRequest();
+                friendRequest.setRequester(requester);
+                friendRequest.setRequested(requested);
+                Calendar date = Calendar.getInstance();
+                date.setTime(rs.getTimestamp("date"));
+                friendRequest.setDate(date);
+                return Optional.of(friendRequest);
+            }
+        } catch (SQLException e) {
+            LoggerService.logerror("Error finding friend request from both users");
+        }
+        return Optional.empty();
+    }
+
+    // FRIENDS
+
+    @Override
+    public void addFriend(FriendRequest friendRequest) {
+        try {
+            if (!friendshipExists(friendRequest)) {
+                PreparedStatement statement = connection.prepareStatement(String.format("INSERT INTO %s VALUES(?,?)",
+                        FRIENDS_TABLE_NAME));
+                statement.setString(1, friendRequest.getRequester().getUsername());
+                statement.setString(2, friendRequest.getRequested().getUsername());
+                statement.executeUpdate();
+            }
+        } catch (SQLException e) {
+            LoggerService.logerror("Error while accepting friend request");
+        }
+    }
+
+    @Override
+    public void deleteFriend(FriendRequest friendRequest) {
+        try {
+            PreparedStatement statement = connection.prepareStatement(
+                String.format("DELETE FROM %s WHERE (username1=? AND username2=?) OR (username1=? AND username2=?)", FRIENDS_TABLE_NAME)
+            );
+            statement.setString(1, friendRequest.getRequester().getUsername());
+            statement.setString(2, friendRequest.getRequested().getUsername());
+
+            statement.setString(3, friendRequest.getRequested().getUsername());
+            statement.setString(4, friendRequest.getRequester().getUsername());
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            LoggerService.logerror("Error while deleting friend request");
+        }
+    }
+
+    public Set<String> findFriendsFromUser(User friend) {
+        Set<String> friends = new HashSet<>();
+        try {
+            PreparedStatement statement = connection.prepareStatement(String.format("SELECT username1, username2 FROM %s WHERE username1=? OR username2=?",
+                    FRIENDS_TABLE_NAME));
+
+            statement.setString(1, friend.getUsername());
+            statement.setString(2, friend.getUsername());
+
+            ResultSet rs = statement.executeQuery();
+
+            while (rs.next()) {
+                String username1 = rs.getString("username1");
+                String username2 = rs.getString("username2");
+                if (username1.equals(friend.getUsername())) {
+                    friends.add(username2);
+                } else {
+                    friends.add(username1);
+                }
+            }
+        } catch (SQLException e) {
+            LoggerService.logerror("Error finding friends from a user");
+        }
+        return friends;
     }
 
     // EXERCISES
@@ -236,7 +327,7 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
                 GymExercise.SingleArm singleArm = GymExercise.SingleArm.valueOf(rs.getString("single_double_arm").toUpperCase().replace(" ", "_"));
                 GymExercise.Grip grip = GymExercise.Grip.valueOf(rs.getString("grip").toUpperCase().replace(" ", "_"));
                 GymExercise.BodyRegion bodyRegion = GymExercise.BodyRegion.valueOf(rs.getString("body_region").toUpperCase()
-                          .replace(" ", "_").replace("*",""));
+                        .replace(" ", "_").replace("*", ""));
                 GymExercise exercise = new GymExercise(exerciseName, setsType, difficultyLevel, muscleGroup, equipment, singleArm, grip, bodyRegion);
                 set.add(exercise);
             }
@@ -245,5 +336,20 @@ public class MySqlConnector implements UserRepository, ExerciseRepository {
             LoggerService.logerror("Error while retrieving exercises with filters");
             return Set.of();
         }
+    }
+
+    public boolean friendshipExists(FriendRequest friendRequest){
+        try {
+            PreparedStatement statement = connection.prepareStatement(String.format("SELECT * FROM %s WHERE (username1=? AND username2=?) OR (username1=? AND username2=?)", FRIENDS_TABLE_NAME));
+            statement.setString(1, friendRequest.getRequester().getUsername());
+            statement.setString(2, friendRequest.getRequested().getUsername());
+            statement.setString(3, friendRequest.getRequested().getUsername());
+            statement.setString(4, friendRequest.getRequester().getUsername());
+            ResultSet rs = statement.executeQuery();
+            return rs.next(); // Exists
+        } catch (SQLException e) {
+            LoggerService.logerror("Error while finding if friendship exists");
+        }
+        return false;
     }
 }

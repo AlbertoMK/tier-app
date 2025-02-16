@@ -5,7 +5,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import server.Controllers.UserController;
 import server.Database.MySqlConnector;
 import server.Model.FriendRequest;
@@ -27,7 +26,12 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class UserEndpointsTest extends ServerEndpointsTest {
 
@@ -840,6 +844,66 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
         } catch (IOException | InterruptedException ex) {
             fail("Unexpected exception happened: " + ex.getMessage());
+        }
+    }
+
+    @Test
+    public void getIncomingRequests() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(connector);
+
+        Calendar date = Calendar.getInstance();
+        FriendRequest request1 = new FriendRequest(Unai, Alberto, date);
+        FriendRequest request2 = new FriendRequest(Alonso, Alberto, date);
+
+        when(connector.findFriendRequestsByRequested(Alberto)).thenReturn(Set.of(request1, request2));
+        when(connector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
+        when(connector.findByUsername(Unai.getUsername())).thenReturn(Optional.of(Unai));
+        when(connector.findByUsername(Alonso.getUsername())).thenReturn(Optional.of(Alonso));
+        FriendRequestService.init(connector);
+
+        try {
+            String token = UserTokenService.generateToken(Alberto.getUsername());
+            HttpResponse<String> response = makeHttpRequest(String.format("user/incoming?session_token=%s", token),
+                    HttpMethod.GET, null);
+            assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
+            List<Map<String, Object>> list = new ObjectMapper().readValue(response.body(), List.class);
+            assertEquals(2, list.size());
+            assertEquals(1, list.stream().filter(request -> request.get("requester").equals(Unai.getUsername()) &&
+                    request.get("date").equals(date.getTimeInMillis())).toList().size());
+            assertEquals(1, list.stream().filter(request -> request.get("requester").equals(Alonso.getUsername()) &&
+                    request.get("date").equals(date.getTimeInMillis())).toList().size());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void getIncomingRequestWithoutToken() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(connector);
+        try {
+            HttpResponse<String> response = makeHttpRequest("user/incoming", HttpMethod.GET, null);
+            assertEquals(HttpURLConnection.HTTP_UNAUTHORIZED, response.statusCode());
+            assertEquals("Token not valid or not present", response.body());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void getIncomingRequestUserNotFound() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        when(connector.findByUsername(Alberto.getUsername())).thenReturn(Optional.empty());
+        App.attachDatabaseManager(connector);
+        try {
+            String token = UserTokenService.generateToken(Alberto.getUsername());
+            HttpResponse<String> response = makeHttpRequest(String.format("user/incoming?session_token=%s", token),
+                    HttpMethod.GET, null);
+            assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
+            assertEquals("Username not found", response.body());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
         }
     }
 }

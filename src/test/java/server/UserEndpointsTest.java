@@ -842,4 +842,68 @@ public class UserEndpointsTest extends ServerEndpointsTest {
             fail("Unexpected exception happened: " + ex.getMessage());
         }
     }
+
+    @Test
+    public void getOutgoingRequests() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(connector);
+
+        when(connector.findByUsername(Alberto.getUsername())).thenReturn(Optional.of(Alberto));
+        when(connector.findByUsername(Unai.getUsername())).thenReturn(Optional.of(Unai));
+        when(connector.findByUsername(Alonso.getUsername())).thenReturn(Optional.of(Alonso));
+
+        Calendar dateTime = Calendar.getInstance();
+        FriendRequest friendRequest1 = new FriendRequest(Alonso, Unai, dateTime);
+        FriendRequest friendRequest2 = new FriendRequest(Alonso, Alberto, dateTime);
+        when(connector.findFriendRequestsByRequester(Alonso)).thenReturn(Set.of(friendRequest1, friendRequest2));
+
+        FriendRequestService.init(connector);
+
+        try {
+            String token = UserTokenService.generateToken(Alonso.getUsername());
+            HttpResponse<String> response = makeHttpRequest(String.format("user/friend/outgoing?session_token=%s", token),
+                    HttpMethod.GET, null);
+            assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
+
+            List<Map<String, Object>> list = new ObjectMapper().readValue(response.body(), List.class); // List of JSONs from response
+            assertEquals(2, list.size()); // The 2 requests
+
+            assertEquals(1, list.stream().filter(request -> request.get("requested").equals(Unai.getUsername()) &&
+                    request.get("date").equals(dateTime.getTimeInMillis())).toList().size());
+            assertEquals(1, list.stream().filter(request -> request.get("requested").equals(Alberto.getUsername()) &&
+                    request.get("date").equals(dateTime.getTimeInMillis())).toList().size());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void getOutgoingRequestWithoutToken() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(connector);
+        try {
+            HttpResponse<String> response = makeHttpRequest("user/friend/outgoing", HttpMethod.GET, null);
+            assertEquals(HttpURLConnection.HTTP_UNAUTHORIZED, response.statusCode());
+            assertEquals("Token not valid or not present", response.body());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void getOutgoingRequestUserNotFound() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        when(connector.findByUsername(Alonso.getUsername())).thenReturn(Optional.empty());
+        App.attachDatabaseManager(connector);
+        try {
+            String token = UserTokenService.generateToken(Alonso.getUsername());
+            HttpResponse<String> response = makeHttpRequest(String.format("user/friend/outgoing?session_token=%s", token),
+                    HttpMethod.GET, null);
+            assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
+            assertEquals("Username not found", response.body());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
 }

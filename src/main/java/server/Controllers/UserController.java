@@ -410,6 +410,7 @@ public class UserController extends GenericHTTPHandler {
         Optional<User> result = userRepository.findByUsername(params.get("username"));
         if (!result.isEmpty()) {
             User user = result.get();
+            user.setPassword("");
             try {
                 response = new ObjectMapper().writeValueAsString(user);
                 httpStatus = HttpURLConnection.HTTP_OK;
@@ -429,10 +430,11 @@ public class UserController extends GenericHTTPHandler {
     }
 
     private Object[] getAllUsersEndpoint() {
-        List<User> users = userRepository.findAllUsers();
         String response;
         int httpStatus;
         boolean isJson;
+        List<User> users = userRepository.findAllUsers();
+        users.forEach(user -> user.setPassword(""));
         try {
             response = new ObjectMapper().writeValueAsString(users);
             httpStatus = HttpURLConnection.HTTP_OK;

@@ -6,7 +6,7 @@ services:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: fit_hub
     volumes:
-      - ./database_scripts/exercises_gym_users.sql:/docker-entrypoint-initdb.d/exercises_gym_users.sql
+      - ./database_scripts/users.sql:/docker-entrypoint-initdb.d/users.sql
       - ./database_scripts/gym_exercises.sql:/docker-entrypoint-initdb.d/gym_exercises.sql
       - ./database_scripts/friend_request.sql:/docker-entrypoint-initdb.d/friend_request.sql
       - ./database_scripts/friends.sql:/docker-entrypoint-initdb.d/friends.sql

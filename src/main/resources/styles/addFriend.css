@@ -22,12 +22,42 @@ button {
     font-size: 15px;
     font-weight: bold;
     width: 30%;
-    background-color: #00644d;
-    flex-direction: row;
+    background-color: #6e9191;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
 }
 
+#result-item {
+    display: flex;
+    flex-direction: row;
+}
+
 #addFriend {
     color: green;
+}
+
+#requests {
+    flex-direction: column;
+    width: 100%;
+}
+
+#requests-list {
+    width: 100%;
+    justify-content: space-around;
+}
+
+.request-container {
+    background-color: #6e9191;
+    border-radius: 10%;
+    min-height: 30px;
+    width: 80%;
+}
+
+#incoming-requests, #outgoing-requests{
+    flex-direction: column;
+    width: 100%;
+}
+
+#incoming-requests {
 }

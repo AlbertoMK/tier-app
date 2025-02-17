@@ -72,6 +72,19 @@ public class UserEndpointsTest extends ServerEndpointsTest {
     }
 
     @Test
+    public void unexpectedEndpointTestInPOST() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(connector);
+        try {
+            HttpResponse<String> response = makeHttpRequest("user/pochoclo", HttpMethod.POST, "");
+            assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
+            assertTrue(response.body().contains("Unrecognized endpoint"));
+        } catch (IOException | InterruptedException ex) {
+            fail("Unexpected exception happened: " + ex.getMessage());
+        }
+    }
+
+    @Test
     public void userFindByUsernameEndpointTest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
 
@@ -848,6 +861,21 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         }
     }
 
+    // GET methods
+
+    @Test
+    public void unexpectedEndpointTestInGET() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(connector);
+        try {
+            HttpResponse<String> response = makeHttpRequest("user/pochoclo", HttpMethod.GET, null);
+            assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
+            assertTrue(response.body().contains("Unrecognized endpoint"));
+        } catch (IOException | InterruptedException ex) {
+            fail("Unexpected exception happened: " + ex.getMessage());
+        }
+    }
+
     @Test
     public void getIncomingRequests() {
         MySqlConnector connector = mock(MySqlConnector.class);
@@ -971,4 +999,85 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         }
     }
 
+    @Test
+    public void getFriendsFromUser() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+
+        User friend1 = new User("friend1", "pass1", Calendar.getInstance());
+        User friend2 = new User("friend2", "pass2", Calendar.getInstance());
+        User friend3 = new User("friend3", "pass3", Calendar.getInstance());
+
+        friend1.setFriends(Set.of(new LazyReference<>(friend2), new LazyReference<>(friend3)));
+
+        when(connector.findByUsername(friend1.getUsername())).thenReturn(Optional.of(friend1));
+
+        App.attachDatabaseManager(connector);
+
+        try {
+            String token = UserTokenService.generateToken(friend1.getUsername());
+            HttpResponse<String> response = makeHttpRequest(String.format("user/friends?session_token=%s", token),
+                    HttpMethod.GET, null);
+            assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
+
+            List<Map<String, Object>> list = new ObjectMapper().readValue(response.body(), List.class); // List of JSONs from response
+            assertEquals(2, list.size()); // The 2 requests
+
+            assertEquals(1, list.stream().filter(request -> request.get("username").equals(friend2.getUsername())).toList().size());
+            assertEquals(1, list.stream().filter(request -> request.get("username").equals(friend3.getUsername())).toList().size());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void getFriendsFromUserButEmptyList() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+
+        User friend1 = new User("friend1", "pass1", Calendar.getInstance());
+
+        when(connector.findByUsername(friend1.getUsername())).thenReturn(Optional.of(friend1));
+
+        App.attachDatabaseManager(connector);
+
+        try {
+            String token = UserTokenService.generateToken(friend1.getUsername());
+            HttpResponse<String> response = makeHttpRequest(String.format("user/friends?session_token=%s", token),
+                    HttpMethod.GET, null);
+            assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
+
+            List<Map<String, Object>> list = new ObjectMapper().readValue(response.body(), List.class); // List of JSONs from response
+            assertEquals(0, list.size());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void getFriendsFromUserWithoutToken() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(connector);
+        try {
+            HttpResponse<String> response = makeHttpRequest("user/friends", HttpMethod.GET, null);
+            assertEquals(HttpURLConnection.HTTP_UNAUTHORIZED, response.statusCode());
+            assertEquals("Token not valid or not present", response.body());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void getFriendsFromUserNotFound() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        when(connector.findByUsername(Alberto.getUsername())).thenReturn(Optional.empty());
+        App.attachDatabaseManager(connector);
+        try {
+            String token = UserTokenService.generateToken(Alberto.getUsername());
+            HttpResponse<String> response = makeHttpRequest(String.format("user/friends?session_token=%s", token),
+                    HttpMethod.GET, null);
+            assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
+            assertEquals("Username not found", response.body());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
 }

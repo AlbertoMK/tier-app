@@ -1007,18 +1007,9 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         User friend2 = new User("friend2", "pass2", Calendar.getInstance());
         User friend3 = new User("friend3", "pass3", Calendar.getInstance());
 
-        friend1.addFriend(new LazyReference<>(friend2).get());
-        friend1.addFriend(new LazyReference<>(friend3).get());
+        friend1.setFriends(Set.of(new LazyReference<>(friend2), new LazyReference<>(friend3)));
 
         when(connector.findByUsername(friend1.getUsername())).thenReturn(Optional.of(friend1));
-        when(connector.findByUsername(friend2.getUsername())).thenReturn(Optional.of(friend2));
-        when(connector.findByUsername(friend3.getUsername())).thenReturn(Optional.of(friend3));
-
-        Calendar dateTime = Calendar.getInstance();
-        FriendRequest friendRequest1 = new FriendRequest(friend1, friend2, dateTime);
-        FriendRequest friendRequest2 = new FriendRequest(friend1, friend3, dateTime);
-        when(connector.findFriendRequestsByRequester(friend1)).thenReturn(Set.of(friendRequest1, friendRequest2));
-
 
         App.attachDatabaseManager(connector);
 
@@ -1033,6 +1024,29 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
             assertEquals(1, list.stream().filter(request -> request.get("username").equals(friend2.getUsername())).toList().size());
             assertEquals(1, list.stream().filter(request -> request.get("username").equals(friend3.getUsername())).toList().size());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void getFriendsFromUserButEmptyList() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+
+        User friend1 = new User("friend1", "pass1", Calendar.getInstance());
+
+        when(connector.findByUsername(friend1.getUsername())).thenReturn(Optional.of(friend1));
+
+        App.attachDatabaseManager(connector);
+
+        try {
+            String token = UserTokenService.generateToken(friend1.getUsername());
+            HttpResponse<String> response = makeHttpRequest(String.format("user/friends?session_token=%s", token),
+                    HttpMethod.GET, null);
+            assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
+
+            List<Map<String, Object>> list = new ObjectMapper().readValue(response.body(), List.class); // List of JSONs from response
+            assertEquals(0, list.size());
         } catch (Exception e) {
             fail("Unexpected exception happened: " + e.getMessage());
         }

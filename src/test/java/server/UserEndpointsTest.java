@@ -369,7 +369,29 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         }
     }
 
+    @Test
+    public void addMutualFriendRequestBetweenUsers(){
+        MySqlConnector mySqlConnector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(mySqlConnector);
 
+        when(mySqlConnector.findByUsername(Alonso.getUsername())).thenReturn(Optional.of(Alonso));
+        when(mySqlConnector.findByUsername(Nico.getUsername())).thenReturn(Optional.of(Nico));
+
+        FriendRequest nicoToAlon = new FriendRequest(Nico,Alonso,Calendar.getInstance());
+        when(mySqlConnector.findFriendRequestsByRequester(Nico)).thenReturn(Set.of(nicoToAlon));
+
+        FriendRequestService.init(mySqlConnector);
+        try {
+            String token = UserTokenService.generateToken(Nico.getUsername());
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Alonso.getUsername()));
+            makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
+            assertEquals(HttpURLConnection.HTTP_CONFLICT, response.statusCode());
+            assertTrue(response.body().contains("This user has already sent or received a friend request"));
+        }catch (IOException | InterruptedException ex) {
+            fail("Unexpected exception happen: " + ex.getMessage());
+        }
+    }
     @Test
     public void addRepeatedFriendRequest() {
         MySqlConnector mySqlConnector = mock(MySqlConnector.class);
@@ -386,7 +408,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
             makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
             HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
             assertEquals(HttpURLConnection.HTTP_CONFLICT, response.statusCode());
-            assertTrue(response.body().contains("This user has already sent a friend request"));
+            assertTrue(response.body().contains("This user has already sent or received a friend request"));
             verify(mySqlConnector, never()).addFriendRequest(any());
         } catch (IOException | InterruptedException ex) {
             fail("Unexpected exception happen: " + ex.getMessage());

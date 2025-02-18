@@ -309,7 +309,7 @@ public class UserController extends GenericHTTPHandler {
                     response = "Missing attribute: requested";
                     httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
                     isJson = false;
-                } else if (requester.equals(requested)) { // Requester == Requested
+                } else if (requester.equals(requested)) {
                     response = "You can't send a friend request to yourself";
                     httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
                     isJson = false;
@@ -324,7 +324,7 @@ public class UserController extends GenericHTTPHandler {
                             httpStatus = HttpURLConnection.HTTP_OK;
                             isJson = false;
                         } else {
-                            response = "This user has already sent a friend request";
+                            response = "This user has already sent or received a friend request";
                             httpStatus = HttpURLConnection.HTTP_CONFLICT;
                             isJson = false;
                         }

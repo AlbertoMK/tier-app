@@ -60,7 +60,7 @@ public class FriendRequestService {
     // return a Set containing the requesters' usernames
     public Set<String> getRequestsAsRequested(String requested) {
         User userRequested = userRepository.findByUsername(requested).get();
-        return userRepository.findFriendRequestsByRequester(userRequested).stream()
+        return userRepository.findFriendRequestsByRequested(userRequested).stream()
                   .map(friendRequest -> friendRequest.getRequester().getUsername())
                   .collect(Collectors.toSet());
     }

@@ -309,6 +309,10 @@ public class UserController extends GenericHTTPHandler {
                     response = "Missing attribute: requested";
                     httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
                     isJson = false;
+                } else if (requester.equals(requested)) { // Requester == Requested
+                    response = "You can't send a friend request to yourself";
+                    httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                    isJson = false;
                 } else {
                     Optional<User> requesterUserOptional = userRepository.findByUsername(requester);
                     Optional<User> requestedUserOptional = userRepository.findByUsername(requested);

@@ -459,10 +459,10 @@ public class UserEndpointsTest extends ServerEndpointsTest {
 
         try {
             String token = UserTokenService.generateToken(Nico.getUsername());
-            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session-token", token, "requested", Nico.getUsername()));
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Nico.getUsername()));
             HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.POST, requestBody);
             assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
-            assertTrue(response.body().contains("Can't add yourself"));
+            assertTrue(response.body().contains("You can't send a friend request to yourself"));
             verify(mySqlConnector, never()).addFriendRequest(any());
         } catch (IOException | InterruptedException ex) {
             fail("Unexpected exception happen: " + ex.getMessage());

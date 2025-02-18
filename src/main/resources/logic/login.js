@@ -13,20 +13,31 @@ function initForm() {
         }
 
         const jsonData = JSON.stringify({ username, password });
+
         httpRequest('http://localhost:8080/user/login', 'POST', jsonData)
             .then(response => {
-                const status = response.status;
-                const body = response.body;
-                if (status != 200) {
-                    alert('Error ' + status + '\n' + body);
-                } else {
-                    const token = response.json().get("session-token");
-                    localStorage.setItem('session-token', token);
-                    window.location.href='./dashboard.html';
-                    alert('Login correctly.')
-                }
-            })
+                console.log("Respuesta del servidor:", response);
 
+                if (response.status !== 200) {
+                    alert('Error ' + response.status + '\n' + JSON.stringify(response.body));
+                    return;
+                }
+
+                const token = response.body["session_token"];
+                if (!token) {
+                    console.error("No se encontró 'session_token' en la respuesta.");
+                    alert("Error: No se encontró el token.");
+                    return;
+                }
+
+                localStorage.setItem('session_token', token);
+                console.log("Token guardado en localStorage, redirigiendo...");
+                window.location.href = './dashboard.html';
+            })
+            .catch(error => {
+                console.error('Error en la petición:', error);
+                alert('Error en la conexión o en la respuesta del servidor.');
+            });
     });
 }
 

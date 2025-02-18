@@ -19,6 +19,7 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public class UserController extends GenericHTTPHandler {
 
@@ -28,7 +29,7 @@ public class UserController extends GenericHTTPHandler {
     private static final int MIN_USERNAME_LENGHT = 5;
     private static final int MAX_USERNAME_LENGTH = 30;
     private static final int MIN_PASSWORD_LENGHT = 8;
-    private static final String BODY_TOKEN_KEY = "session-token";
+    private static final String BODY_TOKEN_KEY = "session_token";
 
     public UserController(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -37,16 +38,34 @@ public class UserController extends GenericHTTPHandler {
     // GET /user
     protected void handleGetRequest(HttpExchange exchange) {
         Map<String, String> params = parseQueryParams(exchange.getRequestURI().getQuery());
+        Optional<String> nextSegment = getNextSegment(exchange.getRequestURI(), 1);
         Object[] res;
 
-        //1. /user?username=[] -> Retrieves a single user by the username
-        if (params.containsKey("username")) {
-            res = getUserByUsernameEndpoint(params);
-        }
+        if (nextSegment.isEmpty()) {
+            //1. /user?username=[] -> Retrieves a single user by the username
+            if (params.containsKey("username")) {
+                res = getUserByUsernameEndpoint(params);
+            }
 
-        //2. /user -> Retrieves list of all users
-        else {
-            res = getAllUsersEndpoint();
+            //2. /user -> Retrieves list of all users
+            else {
+                res = getAllUsersEndpoint();
+            }
+        }
+        // 3. /user/outgoing -> Retrieves list of outgoing requests
+        else if (nextSegment.get().equals("outgoing")) {
+            res = getOutgoingRequests(params);
+
+        // 4. /user/incoming -> Retrieves list of incoming requests
+        } else if (nextSegment.get().equals("incoming")) {
+            res = getIncomingRequests(params);
+
+        // 5. /user/friends -> Retrieves list of friends
+        } else if (nextSegment.get().equals("friends")) {
+            res = getUserFriends(params);
+
+        } else {
+            res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST, false};
         }
 
         String response = (String) res[0];
@@ -58,6 +77,7 @@ public class UserController extends GenericHTTPHandler {
     // POST /user
     protected void handlePostRequest(HttpExchange exchange) {
         Optional<String> nextSegment = getNextSegment(exchange.getRequestURI(), 1);
+        Optional<String> secondSegment = getNextSegment(exchange.getRequestURI(), 2);
         Object[] res;
 
         // /user -> Creates a new user
@@ -71,12 +91,20 @@ public class UserController extends GenericHTTPHandler {
         }
 
         // /user/friend -> Creates a friend request to requestedUsername
-        else if (nextSegment.isPresent() && nextSegment.get().equals("friend")) {
+        else if (nextSegment.isPresent() && nextSegment.get().equals("friend") && secondSegment.isEmpty()) {
             res = createFriendRequest(exchange);
         }
 
-        else {
-            res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST};
+        // /user/friend/accept -> Accepts a friend request
+        else if (nextSegment.isPresent() && nextSegment.get().equals("friend") && secondSegment.isPresent() && secondSegment.get().equals("accept")) {
+            res = acceptFriendRequest(exchange);
+        }
+
+        // /user/friend/reject -> Rejects a friend request
+        else if (nextSegment.isPresent() && nextSegment.get().equals("friend") && secondSegment.isPresent() && secondSegment.get().equals("reject")) {
+            res = rejectFriendRequest(exchange);
+        } else {
+            res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST, false};
         }
 
         String response = (String) res[0];
@@ -92,9 +120,7 @@ public class UserController extends GenericHTTPHandler {
         // /user/friend -> Deletes an existent friend request to requestedUsername
         if (nextSegment.isPresent() && nextSegment.get().equals("friend")) {
             res = deleteFriendRequest(exchange);
-        }
-
-        else {
+        } else {
             res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST};
         }
 
@@ -103,6 +129,118 @@ public class UserController extends GenericHTTPHandler {
         boolean isJson = (boolean) res[2];
         Utils.httpResponse(exchange, httpStatus, isJson, response);
     }
+
+    private Object[] getIncomingRequests(Map<String, String> params) {
+        String response;
+        int httpStatus;
+        boolean isJson;
+
+        try {
+            if (!params.containsKey(BODY_TOKEN_KEY) || requiresToken(params).isEmpty()) {
+                response = "Token not valid or not present";
+                httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
+                isJson = false;
+            } else {
+                String requested = requiresToken(params).get();
+                Optional<User> optionalRequested = userRepository.findByUsername(requested);
+                if (optionalRequested.isPresent()) {
+                    User userRequested = optionalRequested.get();
+                    Set<FriendRequest> requests = userRepository.findFriendRequestsByRequested(userRequested);
+                    response = new ObjectMapper().writeValueAsString(requests.stream().map(request -> {
+                        return Map.of("requester", request.getRequester().getUsername(),
+                                "date", request.getDate());
+                    }).toList());
+                    httpStatus = HttpURLConnection.HTTP_OK;
+                    isJson = true;
+                } else {
+                    response = "Username not found";
+                    httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
+                    isJson = false;
+                }
+            }
+        } catch (IOException e) {
+            response = "Internal error";
+            httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            isJson = false;
+            LoggerService.logerror("Internal error while obtaining http body from request.");
+        }
+        return new Object[]{response, httpStatus, isJson};
+    }
+
+    private Object[] getOutgoingRequests(Map<String, String> params) {
+        String response;
+        int httpStatus;
+        boolean isJson;
+
+        try {
+            if (!params.containsKey(BODY_TOKEN_KEY) || requiresToken(params).isEmpty()) {
+                response = "Token not valid or not present";
+                httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
+                isJson = false;
+            } else {
+                String requester = requiresToken(params).get();
+                Optional<User> optionalRequester = userRepository.findByUsername(requester);
+                if (optionalRequester.isPresent()) {
+                    // 3. Buscar solicitudes enviadas por este usuario
+                    User userRequester = optionalRequester.get();
+                    Set<FriendRequest> requests = userRepository.findFriendRequestsByRequester(userRequester);
+
+                    response = new ObjectMapper().writeValueAsString(requests.stream().map(request -> Map.of("requested", request.getRequested().getUsername(),
+                            "date", request.getDate())).toList());
+
+                    httpStatus = HttpURLConnection.HTTP_OK;
+                    isJson = true;
+                } else {
+                    response = "Username not found";
+                    httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
+                    isJson = false;
+                }
+            }
+        } catch (IOException e) {
+            response = "Internal error";
+            httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            isJson = false;
+            LoggerService.logerror("Internal error while obtaining http body from request.");
+        }
+
+        return new Object[]{response, httpStatus, isJson};
+    }
+
+
+    private Object[] getUserFriends(Map<String, String> params) {
+        String response;
+        int httpStatus;
+        boolean isJson;
+
+        try {
+            if (!params.containsKey(BODY_TOKEN_KEY) || requiresToken(params).isEmpty()) {
+                response = "Token not valid or not present";
+                httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
+                isJson = false;
+            } else {
+                String username = requiresToken(params).get();
+                Optional<User> optionalUser = userRepository.findByUsername(username);
+                if (optionalUser.isPresent()) {
+                    User user = optionalUser.get();
+                    Set<User> friends = user.getFriends();
+                    response = new ObjectMapper().writeValueAsString(friends);
+                    httpStatus = HttpURLConnection.HTTP_OK;
+                    isJson = true;
+                } else {
+                    response = "Username not found";
+                    httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
+                    isJson = false;
+                }
+            }
+        } catch (IOException e) {
+            response = "Internal error";
+            httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            isJson = false;
+            LoggerService.logerror("Internal error while obtaining http body from request.");
+        }
+        return new Object[]{response, httpStatus, isJson};
+    }
+
 
     private Object[] deleteFriendRequest(HttpExchange exchange) {
         String response;
@@ -123,8 +261,7 @@ public class UserController extends GenericHTTPHandler {
                     response = "Missing attribute: requested";
                     httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
                     isJson = false;
-                }
-                else {
+                } else {
                     Optional<User> requesterUser = userRepository.findByUsername(requester);
                     Optional<User> requestedUser = userRepository.findByUsername(requested);
                     if (requesterUser.isPresent() && requestedUser.isPresent()) {
@@ -172,23 +309,119 @@ public class UserController extends GenericHTTPHandler {
                     response = "Missing attribute: requested";
                     httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
                     isJson = false;
+                } else {
+                    Optional<User> requesterUserOptional = userRepository.findByUsername(requester);
+                    Optional<User> requestedUserOptional = userRepository.findByUsername(requested);
+                    if (requesterUserOptional.isPresent() && requestedUserOptional.isPresent()) {
+                        User requesterUser = requesterUserOptional.get();
+                        User requestedUser = requestedUserOptional.get();
+                        if (FriendRequestService.getInstance().addRequest(new FriendRequest(requesterUser, requestedUser, Calendar.getInstance()))) {
+                            response = "Friend request sent";
+                            httpStatus = HttpURLConnection.HTTP_OK;
+                            isJson = false;
+                        } else {
+                            response = "This user has already sent a friend request";
+                            httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                            isJson = false;
+                        }
+                    } else {
+                        response = "Usernames not found";
+                        httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
+                        isJson = false;
+                    }
                 }
-                else if (userRepository.findByUsername(requester).isPresent() && userRepository.findByUsername(requested).isPresent()) {
+            }
+        } catch (IOException e) {
+            response = "Internal error";
+            httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            isJson = false;
+            LoggerService.logerror("Internal error while obtaining http body from request.");
+        }
+        return new Object[]{response, httpStatus, isJson};
+    }
+
+    private Object[] acceptFriendRequest(HttpExchange exchange) {
+        String response;
+        int httpStatus;
+        boolean isJson;
+        try {
+            Map<String, String> body = extractJsonBody(exchange);
+            Optional<String> requestedOptional = requiresToken(body);
+            if (requestedOptional.isEmpty()) {
+                response = "Token not valid or not present";
+                httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
+                isJson = false;
+            } else {
+                String requested = requestedOptional.get();
+                String requester = body.get("requester");
+                if (requester == null) {
+                    response = "Missing attribute: requester";
+                    httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                    isJson = false;
+                } else if (userRepository.findByUsername(requester).isPresent() && userRepository.findByUsername(requested).isPresent()) {
+
                     User requesterUser = userRepository.findByUsername(requester).get();
                     User requestedUser = userRepository.findByUsername(requested).get();
-                    if(requested.equals(requester)){
-                        response = "Can't add yourself";
-                        httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
-                        isJson = false;
-                    }else if (FriendRequestService.getInstance().addRequest(new FriendRequest(requesterUser, requestedUser, Calendar.getInstance()))) {
-                        response = "Friend request sent";
-                        httpStatus = HttpURLConnection.HTTP_OK;
-                        isJson = false;
+                    FriendRequest friendRequest = new FriendRequest(requesterUser, requestedUser, Calendar.getInstance());
+                    if (FriendRequestService.getInstance().friendRequestExists(requesterUser, requestedUser)) { // if the friend request exists
+                        // If they are friends already
+                        if (requestedUser.getFriends().contains(requesterUser)) {
+                            response = "You are already friends";
+                            httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                            isJson = false;
+                        } else {
+                            userRepository.addFriend(friendRequest);
+                            userRepository.deleteFriendRequest(friendRequest);
+                            response = "Friend request accepted";
+                            httpStatus = HttpURLConnection.HTTP_OK;
+                            isJson = false;
+                        }
                     } else {
-                        response = "This user has already sent a friend request";
+                        response = "No pending friend request found";
                         httpStatus = HttpURLConnection.HTTP_CONFLICT;
                         isJson = false;
                     }
+                } else {
+                    response = "Usernames not found";
+                    httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
+                    isJson = false;
+                }
+            }
+        } catch (IOException e) {
+            response = "Internal error";
+            httpStatus = HttpURLConnection.HTTP_INTERNAL_ERROR;
+            isJson = false;
+            LoggerService.logerror("Internal error while obtaining http body from request.");
+        }
+        return new Object[]{response, httpStatus, isJson};
+    }
+
+    private Object[] rejectFriendRequest(HttpExchange exchange) {
+        String response;
+        int httpStatus;
+        boolean isJson;
+        try {
+            Map<String, String> body = extractJsonBody(exchange);
+            Optional<String> requestedOptional = requiresToken(body);
+            if (requestedOptional.isEmpty()) {
+                response = "Token not valid or not present";
+                httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
+                isJson = false;
+            } else {
+                String requested = requestedOptional.get();
+                String requester = body.get("requester");
+                if (requester == null) {
+                    response = "Missing attribute: requester";
+                    httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                    isJson = false;
+                } else if (userRepository.findByUsername(requested).isPresent() && userRepository.findByUsername(requester).isPresent()) {
+                    User requesterUser = userRepository.findByUsername(requester).get();
+                    User requestedUser = userRepository.findByUsername(requested).get();
+                    FriendRequest friendRequest = new FriendRequest(requesterUser, requestedUser, Calendar.getInstance());
+                    userRepository.deleteFriendRequest(friendRequest);
+                    response = "Friend request rejected";
+                    httpStatus = HttpURLConnection.HTTP_OK;
+                    isJson = false;
                 } else {
                     response = "Usernames not found";
                     httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
@@ -220,7 +453,7 @@ public class UserController extends GenericHTTPHandler {
                 if (userRepository.findByUsername(username).isPresent()) { // request with existing username
                     if (compareCredentials(username, rawPassword)) { // valid request with matching passwords
                         String token = UserTokenService.generateToken(username);
-                        response = new ObjectMapper().writeValueAsString(Map.of("session-token", token));
+                        response = new ObjectMapper().writeValueAsString(Map.of(BODY_TOKEN_KEY, token));
                         httpStatus = HttpURLConnection.HTTP_OK;
                         isJson = true;
                     } else { // wrong credentials
@@ -308,6 +541,7 @@ public class UserController extends GenericHTTPHandler {
         Optional<User> result = userRepository.findByUsername(params.get("username"));
         if (!result.isEmpty()) {
             User user = result.get();
+            user.setPassword("");
             try {
                 response = new ObjectMapper().writeValueAsString(user);
                 httpStatus = HttpURLConnection.HTTP_OK;
@@ -327,10 +561,11 @@ public class UserController extends GenericHTTPHandler {
     }
 
     private Object[] getAllUsersEndpoint() {
-        List<User> users = userRepository.findAllUsers();
         String response;
         int httpStatus;
         boolean isJson;
+        List<User> users = userRepository.findAllUsers();
+        users.forEach(user -> user.setPassword(""));
         try {
             response = new ObjectMapper().writeValueAsString(users);
             httpStatus = HttpURLConnection.HTTP_OK;

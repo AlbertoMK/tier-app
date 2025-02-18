@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add friend</title>
+    <link rel="stylesheet" href="/styles/common-styles.css">
+    <link rel="stylesheet" href="/styles/addFriend.css">
+    <script src="https://kit.fontawesome.com/5c1a6feda0.js" crossorigin="anonymous"></script>
+    <script src="/logic/menu-logic.js"></script>
+    <script src="/logic/common-logic.js"></script>
+    <script src="/logic/addFriend.js"></script>
+</head>
+<body>
+<div id="menu-container"></div>
+<div class="content">
+    <div id="search-zone">
+        <input id="username-input" type="text" placeholder="Search for a user">
+        <button onclick="searchUser()"><i class="fa-solid fa-magnifying-glass"></i></button>
+    </div>
+    <div id="result-zone">
+        <div id="user-result">
+            <p id="username"></p>
+            <button id="addFriend" onclick="addUser()"><i class="fa-solid fa-user-plus"></i></button>
+        </div>
+    </div>
+</div>
+</body>
+</html>

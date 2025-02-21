@@ -56,11 +56,11 @@ public class UserController extends GenericHTTPHandler {
         else if (nextSegment.get().equals("outgoing")) {
             res = getOutgoingRequests(params);
 
-        // 4. /user/incoming -> Retrieves list of incoming requests
+            // 4. /user/incoming -> Retrieves list of incoming requests
         } else if (nextSegment.get().equals("incoming")) {
             res = getIncomingRequests(params);
 
-        // 5. /user/friends -> Retrieves list of friends
+            // 5. /user/friends -> Retrieves list of friends
         } else if (nextSegment.get().equals("friends")) {
             res = getUserFriends(params);
 
@@ -117,9 +117,13 @@ public class UserController extends GenericHTTPHandler {
         Optional<String> nextSegment = getNextSegment(exchange.getRequestURI(), 1);
         Object[] res;
 
-        // /user/friend -> Deletes an existent friend request to requestedUsername
-        if (nextSegment.isPresent() && nextSegment.get().equals("friend")) {
+        // /user/friend_request -> Deletes an existent friend request to requestedUsername
+        if (nextSegment.isPresent() && nextSegment.get().equals("friend_request")) {
             res = deleteFriendRequest(exchange);
+
+            // /user/friend -> Deletes a friendship between 2 users
+        } else if (nextSegment.isPresent() && nextSegment.get().equals("friend")) {
+            res = deleteFriendship(exchange);
         } else {
             res = new Object[]{"Unrecognized endpoint", HttpURLConnection.HTTP_BAD_REQUEST};
         }
@@ -128,6 +132,56 @@ public class UserController extends GenericHTTPHandler {
         int httpStatus = (int) res[1];
         boolean isJson = (boolean) res[2];
         Utils.httpResponse(exchange, httpStatus, isJson, response);
+    }
+
+    private Object[] deleteFriendship(HttpExchange exchange) {
+        String response;
+        int httpStatus;
+        boolean isJson;
+
+        Map<String, String> body = null;
+        try {
+            body = extractJsonBody(exchange);
+            Optional<String> userOptional = requiresToken(body);
+            if (userOptional.isEmpty()) {
+                response = "Token not valid or not present";
+                httpStatus = HttpURLConnection.HTTP_UNAUTHORIZED;
+                isJson = false;
+            } else {
+                String username = userOptional.get();
+                String friendUsername = body.get("friend");
+                if (friendUsername == null) {
+                    response = "Missing attribute: friend";
+                    httpStatus = HttpURLConnection.HTTP_BAD_REQUEST;
+                    isJson = false;
+                } else {
+                    Optional<User> user = userRepository.findByUsername(username);
+                    Optional<User> friend = userRepository.findByUsername(friendUsername);
+                    if (user.isPresent() && friend.isPresent()) {
+                        User userObject = user.get();
+                        User friendObject = friend.get();
+                        if (userObject.getFriends().stream().anyMatch(userFriend ->
+                                userFriend.getUsername().equals(friendUsername))) {
+                            userRepository.deleteFriend(new FriendRequest(userObject, friendObject, null));
+                            response = "Friendship has been removed successfully";
+                            httpStatus = HttpURLConnection.HTTP_OK;
+                            isJson = false;
+                        } else {
+                            response = "Unexistent friendship";
+                            httpStatus = HttpURLConnection.HTTP_CONFLICT;
+                            isJson = false;
+                        }
+                    } else {
+                        response = "Usernames not found";
+                        httpStatus = HttpURLConnection.HTTP_NOT_FOUND;
+                        isJson = false;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return new Object[]{response, httpStatus, isJson};
     }
 
     private Object[] getIncomingRequests(Map<String, String> params) {

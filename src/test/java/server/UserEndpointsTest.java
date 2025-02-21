@@ -5,7 +5,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 import server.Controllers.UserController;
 import server.Database.MySqlConnector;
 import server.Model.FriendRequest;
@@ -501,7 +500,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
             String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Unai.getUsername()));
-            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
+            HttpResponse<String> response = makeHttpRequest("user/friend_request", HttpMethod.DELETE, requestBody);
             assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
             assertTrue(response.body().contains("Friend request removed"));
             verify(mySqlConnector).deleteFriendRequest(any());
@@ -523,7 +522,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
             String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Unai.getUsername()));
-            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
+            HttpResponse<String> response = makeHttpRequest("user/friend_request", HttpMethod.DELETE, requestBody);
             assertEquals(HttpURLConnection.HTTP_CONFLICT, response.statusCode());
             assertTrue(response.body().contains("This user hasn't an existing friend request"));
             verify(mySqlConnector, never()).deleteFriendRequest(any());
@@ -566,7 +565,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
             String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token));
-            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
+            HttpResponse<String> response = makeHttpRequest("user/friend_request", HttpMethod.DELETE, requestBody);
             assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
             assertTrue(response.body().contains("Missing attribute: requested"));
             verify(mySqlConnector, never()).deleteFriendRequest(any());
@@ -587,7 +586,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
             String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Unai.getUsername()));
-            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
+            HttpResponse<String> response = makeHttpRequest("user/friend_request", HttpMethod.DELETE, requestBody);
             assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
             assertTrue(response.body().contains("Usernames not found"));
             verify(mySqlConnector, never()).deleteFriendRequest(any());
@@ -608,7 +607,7 @@ public class UserEndpointsTest extends ServerEndpointsTest {
         try {
             String token = UserTokenService.generateToken(Alberto.getUsername());
             String requestBody = new ObjectMapper().writeValueAsString(Map.of("session_token", token, "requested", Unai.getUsername()));
-            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
+            HttpResponse<String> response = makeHttpRequest("user/friend_request", HttpMethod.DELETE, requestBody);
             assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
             assertTrue(response.body().contains("Usernames not found"));
             verify(mySqlConnector, never()).deleteFriendRequest(any());
@@ -1093,6 +1092,126 @@ public class UserEndpointsTest extends ServerEndpointsTest {
                     HttpMethod.GET, null);
             assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
             assertEquals("Username not found", response.body());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void deleteFriendship() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(connector);
+
+        User user1 = new User("user1", "pass1", Calendar.getInstance());
+        User user2 = new User("user2", "pass1", Calendar.getInstance());
+        user1.setFriends(Set.of(new LazyReference<>(user2)));
+
+        when(connector.findByUsername(user1.getUsername())).thenReturn(Optional.of(user1));
+        when(connector.findByUsername(user2.getUsername())).thenReturn(Optional.of(user2));
+
+        try {
+            String token = UserTokenService.generateToken(user1.getUsername());
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of(
+                    "session_token", token,
+                    "friend", user2.getUsername()
+            ));
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
+            assertEquals(HttpURLConnection.HTTP_OK, response.statusCode());
+            assertEquals("Friendship has been removed successfully", response.body());
+            verify(connector).deleteFriend(any());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void deleteFriendshipWithoutToken() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(connector);
+
+        try {
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of(
+                    "friend", "whatever"
+            ));
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
+            assertEquals(HttpURLConnection.HTTP_UNAUTHORIZED, response.statusCode());
+            assertEquals("Token not valid or not present", response.body());
+            verify(connector, never()).deleteFriend(any());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void deleteFriendshipWithoutFriendUsername() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(connector);
+
+        User user1 = new User("user1", "pass1", Calendar.getInstance());
+
+        when(connector.findByUsername(user1.getUsername())).thenReturn(Optional.of(user1));
+
+        try {
+            String token = UserTokenService.generateToken(user1.getUsername());
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of(
+                    "session_token", token
+            ));
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
+            assertEquals(HttpURLConnection.HTTP_BAD_REQUEST, response.statusCode());
+            assertEquals("Missing attribute: friend", response.body());
+            verify(connector, never()).deleteFriend(any());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void deleteFriendshipUsernamesNotFound() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(connector);
+
+        User user1 = new User("user1", "pass1", Calendar.getInstance());
+        User user2 = new User("user2", "pass1", Calendar.getInstance());
+
+        when(connector.findByUsername(user1.getUsername())).thenReturn(Optional.empty());
+        when(connector.findByUsername(user2.getUsername())).thenReturn(Optional.empty());
+
+        try {
+            String token = UserTokenService.generateToken(user1.getUsername());
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of(
+                    "session_token", token,
+                    "friend", user2.getUsername()
+            ));
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
+            assertEquals(HttpURLConnection.HTTP_NOT_FOUND, response.statusCode());
+            assertEquals("Usernames not found", response.body());
+            verify(connector, never()).deleteFriend(any());
+        } catch (Exception e) {
+            fail("Unexpected exception happened: " + e.getMessage());
+        }
+    }
+
+    @Test
+    public void deleteUnexistentFriendship() {
+        MySqlConnector connector = mock(MySqlConnector.class);
+        App.attachDatabaseManager(connector);
+
+        User user1 = new User("user1", "pass1", Calendar.getInstance());
+        User user2 = new User("user2", "pass1", Calendar.getInstance());
+
+        when(connector.findByUsername(user1.getUsername())).thenReturn(Optional.of(user1));
+        when(connector.findByUsername(user2.getUsername())).thenReturn(Optional.of(user2));
+
+        try {
+            String token = UserTokenService.generateToken(user1.getUsername());
+            String requestBody = new ObjectMapper().writeValueAsString(Map.of(
+                    "session_token", token,
+                    "friend", user2.getUsername()
+            ));
+            HttpResponse<String> response = makeHttpRequest("user/friend", HttpMethod.DELETE, requestBody);
+            assertEquals(HttpURLConnection.HTTP_CONFLICT, response.statusCode());
+            assertEquals("Unexistent friendship", response.body());
+            verify(connector, never()).deleteFriend(any());
         } catch (Exception e) {
             fail("Unexpected exception happened: " + e.getMessage());
         }

@@ -168,7 +168,7 @@ public class MongoDBConnector {
                         case REPETITIONS -> set.reps(setDoc.getInteger("reps"));
                         case TIME_DISTANCE -> {
                             set.duration(setDoc.getInteger("duration"));
-                            set.distance(setDoc.getInteger("distance"));
+                            set.distance(setDoc.getDouble("distance"));
                         }
                         case WEIGHTED_REPETITIONS -> {
                             set.weight(setDoc.getDouble("weight"));

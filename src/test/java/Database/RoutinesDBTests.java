@@ -5,6 +5,7 @@ import server.Database.MongoDBConnector;
 import server.Model.*;
 import server.Utils.LoggerService;
 
+import javax.swing.text.html.Option;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -62,6 +63,18 @@ public class RoutinesDBTests {
         result = connector.addRoutine(routineDuplicated);
 
         assertFalse(result);
+    }
+
+    @Test
+    public void testAddRoutineWithNullFields() {
+        Routine routine = new Routine();
+        routine.setId(1234);
+
+        boolean result = connector.addRoutine(routine);
+
+        assertTrue(result, "Routine can be added without name");
+        Optional<Routine> retrieved = connector.findById(1234);
+        assertTrue(retrieved.isPresent());
     }
 
 
@@ -264,7 +277,7 @@ public class RoutinesDBTests {
     }
 
     @Test
-    public void testFindRoutineById() { // Done
+    public void testFindRoutineById() {
         Routine routine1 = new Routine();
         routine1.setId(1);
         routine1.setRoutineName("Cardio training");
@@ -272,12 +285,19 @@ public class RoutinesDBTests {
 
         Optional<Routine> routineSearch;
         routineSearch = connector.findById(1);
-
         assertTrue(routineSearch.isPresent());
+
+        Routine routine2 = new Routine();
+        routine2.setId(2025);
+        routine2.setRoutineName("Cardio training");
+        connector.addRoutine(routine2);
+
+        Optional<Routine> routineSearch2 = connector.findById(2025);
+        assertTrue(routineSearch2.isPresent());
     }
 
     @Test
-    public void testUpdateRoutine() { // Done
+    public void testUpdateRoutine() {
         Routine routine = new Routine();
         routine.setId(1);
         routine.setRoutineName("Upper");
@@ -291,6 +311,80 @@ public class RoutinesDBTests {
         Optional<Routine> routineFound = connector.findById(1);
         assertTrue(routineFound.isPresent());
         assertEquals("Legs", routineFound.get().getRoutineName());
+    }
+
+    @Test
+    public void testUpdateRoutineExercises() {
+        Routine routine = new Routine();
+        routine.setId(1);
+        routine.setRoutineName("Upper");
+
+        connector.addRoutine(routine);
+
+        Optional<Routine> routineFound = connector.findById(1);
+        assertTrue(routineFound.isPresent(), "Routine should exists before update");
+        assertTrue(routineFound.get().getExerciseSets().isEmpty(), "Routine should not have exercises right now");
+
+        Exercise benchPress = new GymExercise(
+                "Bench Press",
+                Exercise.SetsType.WEIGHTED_REPETITIONS,
+                GymExercise.DifficultyLevel.INTERMEDIATE,
+                GymExercise.MuscleGroup.CHEST,
+                GymExercise.Equipment.BARBELL,
+                GymExercise.SingleArm.DOUBLE_ARM,
+                GymExercise.Grip.SUPINATED,
+                GymExercise.BodyRegion.UPPER_BODY
+        );
+        Set bpSet1 = Set.builder()
+                .reps(8)
+                .weight(60)
+                .setType(Set.SetType.NORMAL)
+                .build();
+        Set bpSet2 = Set.builder()
+                .reps(12)
+                .weight(60)
+                .setType(Set.SetType.DROPSET)
+                .build();
+
+        ExerciseSet benchPressEx = new ExerciseSet(benchPress, List.of(bpSet1, bpSet2));
+
+        routine.setExerciseSets(List.of(benchPressEx));
+
+        connector.updateRoutine(routine);
+
+        Optional<Routine> routineFoundAfterUpdate = connector.findById(1);
+        assertTrue(routineFoundAfterUpdate.isPresent(), "Routine should still exist");
+
+        Routine updatedRoutine = routineFoundAfterUpdate.get();
+        List<ExerciseSet> updatedSets = updatedRoutine.getExerciseSets();
+        assertEquals(1, updatedSets.size(), "Routine should have an exercise after update");
+
+        ExerciseSet updatedExerciseSet = updatedSets.get(0);
+        assertEquals("Bench Press", updatedExerciseSet.getExercise().getExerciseName());
+        assertEquals(Exercise.SetsType.WEIGHTED_REPETITIONS, updatedExerciseSet.getExercise().getSetsType());
+
+        List<Set> setsUpdated = updatedExerciseSet.getSets();
+        assertEquals(2, setsUpdated.size(), "Sets should be two");
+
+        assertEquals(Set.SetType.NORMAL, setsUpdated.get(0).getSetType());
+        assertEquals(8, setsUpdated.get(0).getReps());
+        assertEquals(60.0, setsUpdated.get(0).getWeight());
+
+        assertEquals(Set.SetType.DROPSET, setsUpdated.get(1).getSetType());
+        assertEquals(12, setsUpdated.get(1).getReps());
+        assertEquals(60.0, setsUpdated.get(1).getWeight());
+    }
+
+    @Test
+    public void testErrorUpdatingRoutineNotFound() {
+        Routine routine = new Routine();
+        routine.setId(500);
+        routine.setRoutineName("N/A");
+
+        connector.updateRoutine(routine);
+
+        Optional<Routine> routineFound = connector.findById(500);
+        assertFalse(routineFound.isPresent(), "Routine should exists before update");
     }
 
     @Test
@@ -316,6 +410,19 @@ public class RoutinesDBTests {
         result = connector.deleteRoutine(routine);
 
         assertFalse(result);
+    }
+
+    @Test
+    public void testDeleteRoutineTwice() {
+        Routine routine = new Routine();
+        routine.setId(1);
+        routine.setRoutineName("Goldito");
+        connector.addRoutine(routine);
+
+        boolean firtsDelete = connector.deleteRoutine(routine);
+        assertTrue(firtsDelete);
+        boolean secondDelete = connector.deleteRoutine(routine);
+        assertFalse(secondDelete, "Routine cannot be deleted twice");
     }
 
 }

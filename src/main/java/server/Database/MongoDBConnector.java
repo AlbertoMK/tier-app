@@ -7,11 +7,7 @@ import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import server.Model.Exercise;
-import server.Model.ExerciseSet;
-import server.Model.GymExercise;
-import server.Model.Routine;
-import server.Model.Set;
+import server.Model.*;
 import server.Utils.LoggerService;
 import server.Utils.PropertiesLoader;
 
@@ -56,89 +52,71 @@ public class MongoDBConnector {
 
     public boolean addRoutine(Routine routine) {
         MongoCollection<Document> collection = database.getCollection(ROUTINE_COLLECTION);
-        Document document = routineToDocument(routine).get();
-        if (document.isEmpty()) {
+        Optional<Document> optionalDoc = routineToDocument(routine);
+        if (optionalDoc.isEmpty()) {
             return false;
         }
-        collection.insertOne(document);
-        return true;
+
+        try {
+            collection.insertOne(optionalDoc.get());
+            return true;
+        } catch (Exception e) {
+            LoggerService.logerror("Error inserting routine: " + e.getMessage());
+            return false;
+        }
     }
+
+
 
     private Optional<Document> routineToDocument(Routine routine) {
         try {
             Document document = new Document();
             document.append("name", routine.getRoutineName());
             document.append("_id", routine.getId());
+
             List<ExerciseSet> exerciseSets = routine.getExerciseSets();
             List<Document> exerciseSetsDocument = new ArrayList<>();
-            exerciseSets.forEach(exerciseSet -> {
-                Document exerciseSetDocument = new Document();
-                exerciseSetDocument.append("exerciseName", exerciseSet.getExercise().getExerciseName());
-                List<Document> setsDocument = new ArrayList<>();
-                exerciseSet.getSets().forEach(set -> {
-                    Document setDocument = new Document();
-                    setDocument.append("type", set.getSetType().name());
-                    switch (exerciseSet.getExercise().getSetsType()) {
-                        case TIME -> setDocument.append("duration", set.getDuration());
-                        case REPETITIONS -> setDocument.append("reps", set.getReps());
-                        case TIME_DISTANCE -> {
-                            setDocument.append("duration", set.getDuration());
-                            setDocument.append("distance", set.getDistance());
+
+            if (exerciseSets != null && !exerciseSets.isEmpty()) {
+                for (ExerciseSet exerciseSet : exerciseSets) {
+                    Document exerciseSetDocument = new Document();
+                    Exercise exercise = exerciseSet.getExercise();
+
+                    if (exercise == null) continue;
+
+                    exerciseSetDocument.append("exerciseName", exercise.getExerciseName());
+                    exerciseSetDocument.append("setsType", exercise.getSetsType().name());
+
+                    List<Document> setsDocument = new ArrayList<>();
+                    for (Set set : exerciseSet.getSets()) {
+                        Document setDocument = new Document();
+                        setDocument.append("type", set.getSetType().name());
+                        switch (exercise.getSetsType()) {
+                            case TIME -> setDocument.append("duration", set.getDuration());
+                            case REPETITIONS -> setDocument.append("reps", set.getReps());
+                            case TIME_DISTANCE -> {
+                                setDocument.append("duration", set.getDuration());
+                                setDocument.append("distance", set.getDistance());
+                            }
+                            case WEIGHTED_REPETITIONS -> {
+                                setDocument.append("weight", set.getWeight());
+                                setDocument.append("reps", set.getReps());
+                            }
                         }
-                        case WEIGHTED_REPETITIONS -> {
-                            setDocument.append("weight", set.getWeight());
-                            setDocument.append("reps", set.getReps());
-                        }
+                        setsDocument.add(setDocument);
                     }
-                    setsDocument.add(setDocument);
-                });
-                exerciseSetDocument.append("sets", setsDocument);
-                exerciseSetsDocument.add(exerciseSetDocument);
-                document.append("exerciseSets", exerciseSetsDocument);
-            });
+
+                    exerciseSetDocument.append("sets", setsDocument);
+                    exerciseSetsDocument.add(exerciseSetDocument);
+                }
+            }
+            document.append("exerciseSets", exerciseSetsDocument);
+
             return Optional.of(document);
         } catch (Exception e) {
             LoggerService.logerror("Error transforming Routine to MongoDB Document");
             return Optional.empty();
         }
-    }
-
-    private Routine documentToRoutine(Document document) {
-        int id = document.getInteger("_id");
-        String name = document.getString("name");
-        List<Document> exerciseSetsDocument = (List<Document>) document.get("exerciseSets");
-        List<ExerciseSet> exerciseSets = new ArrayList<>();
-
-        for (Document exerciseSetDoc : exerciseSetsDocument) {
-            String exerciseName = exerciseSetDoc.getString("exerciseName");
-            GymExercise exercise = new GymExercise(exerciseName, null,  null, null, null, null, null, null);
-            List<Document> setsDocument = (List<Document>) exerciseSetDoc.get("sets");
-            List<server.Model.Set> sets = new ArrayList<>();
-            Exercise.SetsType setsType = exercise.getSetsType();
-            for (Document setDoc : setsDocument) {
-                Set.SetType type = Set.SetType.valueOf(setDoc.getString("type"));
-                server.Model.Set.SetBuilder set = Set.builder()
-                        .setType(type);
-
-                switch (setsType) {
-                    case TIME -> set.duration(setDoc.getInteger("duration"));
-                    case REPETITIONS -> set.reps(setDoc.getInteger("reps"));
-                    case TIME_DISTANCE -> {
-                        set.duration(setDoc.getInteger("duration"));
-                        set.distance(setDoc.getInteger("distance"));
-                    }
-                    case WEIGHTED_REPETITIONS -> {
-                        set.weight(setDoc.getDouble("weight"));
-                        set.reps(setDoc.getInteger("reps"));
-                    }
-                }
-                sets.add(set.build());
-            }
-
-            ExerciseSet exerciseSet = new ExerciseSet(exercise, sets);
-            exerciseSets.add(exerciseSet);
-        }
-        return new Routine(id, name, exerciseSets);
     }
 
     public Optional<Routine> findById(int id) {
@@ -153,8 +131,60 @@ public class MongoDBConnector {
 
         } catch (Exception e) {
             LoggerService.logerror("Error retrieving routine with id " + id);
-            return null;
+            return Optional.empty();
         }
+    }
+
+    private Routine documentToRoutine(Document document) {
+        int id = document.getInteger("_id");
+        String name = document.getString("name");
+        List<Document> exerciseSetsDocument = (List<Document>) document.get("exerciseSets");
+        List<ExerciseSet> exerciseSets = new ArrayList<>();
+
+        if (!exerciseSetsDocument.isEmpty()) {
+            for (Document exerciseSetDoc : exerciseSetsDocument) {
+                String exerciseName = exerciseSetDoc.getString("exerciseName");
+                String setsTypeStr = exerciseSetDoc.getString("setsType");
+                Exercise.SetsType setsType = Exercise.SetsType.valueOf(setsTypeStr);
+
+                Exercise exercise;
+                if (setsType == Exercise.SetsType.TIME_DISTANCE) {
+                    exercise = new CardioExercise();
+                    exercise.setExerciseName(exerciseName);
+                    exercise.setSetsType(setsType);
+                } else {
+                    exercise = new GymExercise(exerciseName, setsType, null, null, null, null, null, null);
+                }
+
+                List<Document> setsDocument = (List<Document>) exerciseSetDoc.get("sets");
+                List<server.Model.Set> sets = new ArrayList<>();
+
+                for (Document setDoc : setsDocument) {
+                    Set.SetType type = Set.SetType.valueOf(setDoc.getString("type"));
+                    server.Model.Set.SetBuilder set = Set.builder().setType(type);
+
+                    switch (setsType) {
+                        case TIME -> set.duration(setDoc.getInteger("duration"));
+                        case REPETITIONS -> set.reps(setDoc.getInteger("reps"));
+                        case TIME_DISTANCE -> {
+                            set.duration(setDoc.getInteger("duration"));
+                            set.distance(setDoc.getInteger("distance"));
+                        }
+                        case WEIGHTED_REPETITIONS -> {
+                            set.weight(setDoc.getDouble("weight"));
+                            set.reps(setDoc.getInteger("reps"));
+                        }
+                    }
+                    sets.add(set.build());
+                }
+
+                ExerciseSet exerciseSet = new ExerciseSet(exercise, sets);
+                exerciseSets.add(exerciseSet);
+            }
+        }
+
+
+        return new Routine(id, name, exerciseSets);
     }
 
     public boolean updateRoutine(Routine routine) {
